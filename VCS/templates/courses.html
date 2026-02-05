@@ -2,17 +2,118 @@
 
 {% block content %}
 
+<h2 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">📚 Training Courses</h2>
 
-<h2 class="text-xl font-bold mb-4">Training Courses</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    {% for course in courses %}
-    <div class="bg-white p-4 shadow rounded">
-        <h3 class="font-semibold">{{ course.title }}</h3>
-        <p class="text-gray-600">{{ course.description }}</p>
-        <a href="{{ course.link }}" class="text-blue-600 mt-2 inline-block">Start Course</a>
+  <!-- Course 1: Python Programming -->
+  <div class="group bg-white rounded-2xl shadow-md p-6 flex flex-col justify-between
+              hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 mb-4 mx-auto">
+      <i class="bx bx-code text-2xl"></i>
     </div>
-    {% endfor %}
+    <h3 class="text-lg font-semibold text-gray-800 mb-2 text-center group-hover:text-indigo-600 transition">
+      Python Programming
+    </h3>
+    <p class="text-gray-600 text-sm mb-4 text-center">
+      Learn Python from basics to advanced concepts for web and data applications.
+    </p>
+    <a href="#" class="mt-auto inline-block bg-indigo-600 text-white px-4 py-2 rounded-full text-sm
+                      text-center hover:bg-indigo-700 transition w-full">
+      Start Course
+    </a>
+  </div>
+
+  <!-- Course 2: Data Science -->
+  <div class="group bg-white rounded-2xl shadow-md p-6 flex flex-col justify-between
+              hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-4 mx-auto">
+      <i class="bx bx-data text-2xl"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-800 mb-2 text-center group-hover:text-green-600 transition">
+      Data Science
+    </h3>
+    <p class="text-gray-600 text-sm mb-4 text-center">
+      Analyze data and build predictive models using Python, Pandas, and Machine Learning.
+    </p>
+    <a href="#" class="mt-auto inline-block bg-green-600 text-white px-4 py-2 rounded-full text-sm
+                      text-center hover:bg-green-700 transition w-full">
+      Start Course
+    </a>
+  </div>
+
+  <!-- Course 3: Machine Learning -->
+  <div class="group bg-white rounded-2xl shadow-md p-6 flex flex-col justify-between
+              hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 mb-4 mx-auto">
+      <i class="bx bx-brain text-2xl"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-800 mb-2 text-center group-hover:text-yellow-600 transition">
+      Machine Learning
+    </h3>
+    <p class="text-gray-600 text-sm mb-4 text-center">
+      Master supervised and unsupervised learning techniques and model deployment.
+    </p>
+    <a href="#" class="mt-auto inline-block bg-yellow-600 text-white px-4 py-2 rounded-full text-sm
+                      text-center hover:bg-yellow-700 transition w-full">
+      Start Course
+    </a>
+  </div>
+
+  <!-- Course 4: Web Development -->
+  <div class="group bg-white rounded-2xl shadow-md p-6 flex flex-col justify-between
+              hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-pink-100 text-pink-600 mb-4 mx-auto">
+      <i class="bx bx-network-chart text-2xl"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-800 mb-2 text-center group-hover:text-pink-600 transition">
+      Web Development
+    </h3>
+    <p class="text-gray-600 text-sm mb-4 text-center">
+      Learn HTML, CSS, JavaScript, Django, and React to build modern web apps.
+    </p>
+    <a href="#" class="mt-auto inline-block bg-pink-600 text-white px-4 py-2 rounded-full text-sm
+                      text-center hover:bg-pink-700 transition w-full">
+      Start Course
+    </a>
+  </div>
+
+  <!-- Course 5: Cloud Computing -->
+  <div class="group bg-white rounded-2xl shadow-md p-6 flex flex-col justify-between
+              hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-600 mb-4 mx-auto">
+      <i class="bx bx-cloud text-2xl"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-800 mb-2 text-center group-hover:text-purple-600 transition">
+      Cloud Computing
+    </h3>
+    <p class="text-gray-600 text-sm mb-4 text-center">
+      Deploy, manage, and scale applications on AWS, Azure, and Google Cloud platforms.
+    </p>
+    <a href="#" class="mt-auto inline-block bg-purple-600 text-white px-4 py-2 rounded-full text-sm
+                      text-center hover:bg-purple-700 transition w-full">
+      Start Course
+    </a>
+  </div>
+
+  <!-- Course 6: Cybersecurity -->
+  <div class="group bg-white rounded-2xl shadow-md p-6 flex flex-col justify-between
+              hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-teal-100 text-teal-600 mb-4 mx-auto">
+      <i class="bx bx-shield text-2xl"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-800 mb-2 text-center group-hover:text-teal-600 transition">
+      Cybersecurity
+    </h3>
+    <p class="text-gray-600 text-sm mb-4 text-center">
+      Learn ethical hacking, penetration testing, and network security essentials.
+    </p>
+    <a href="#" class="mt-auto inline-block bg-teal-600 text-white px-4 py-2 rounded-full text-sm
+                      text-center hover:bg-teal-700 transition w-full">
+      Start Course
+    </a>
+  </div>
+
 </div>
 
 {% endblock %}

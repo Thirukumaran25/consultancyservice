@@ -1,55 +1,55 @@
-{% extends 'base.html' %}
-<title>AI Resume Optimizer</title>
-
+{% extends "base.html" %}
 {% block content %}
+<div class="max-w-3xl mx-auto p-6 bg-white shadow rounded-lg">
+    <h2 class="text-2xl font-bold mb-4">AI Resume Optimizer</h2>
 
-
-
-<div class="max-w-5xl mx-auto p-8">
-    
-    <h1 class="text-3xl font-bold mb-6">🤖 AI Resume Optimizer</h1>
-    
-    <div class="bg-white shadow rounded-xl p-6">
-        
-        <form method="POST">
-            {% csrf_token %}
-            
-            <label class="block font-semibold mb-2">Paste your Resume Text:</label>
-            <textarea name="resume_text" rows="8"
-            class="w-full border rounded p-3 focus:ring focus:ring-indigo-300"
-            placeholder="Paste your resume content here..."></textarea>
-            
-            <button class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
-                Analyze Resume
-            </button>
-        </form>
-        
-        {% if score %}
-        <div class="mt-6">
-            <h2 class="text-xl font-semibold">Resume Score</h2>
-            
-            <div class="w-full bg-gray-200 rounded h-4 mt-2">
-                <div class="bg-green-500 h-4 rounded" style="width: {{ score }}%"></div>
-            </div>
-            
-            <p class="mt-2 text-green-700 font-bold">{{ score }}% Optimized</p>
+    <!-- Resume Score -->
+    <div class="mb-4">
+        <p class="font-semibold">Resume Match Score: <span class="text-blue-600">{{ score }}%</span></p>
+        <div class="w-full bg-gray-200 rounded-full h-4">
+            <div class="bg-blue-600 h-4 rounded-full" style="width: {{ score }}%;"></div>
         </div>
+    </div>
+
+    <!-- Matched & Missing Keywords -->
+    <div class="mb-4">
+        {% if matched_keywords %}
+            <p class="font-semibold text-green-700">Matched Keywords:</p>
+            <ul class="list-disc list-inside mb-2">
+                {% for kw in matched_keywords %}
+                    <li>{{ kw|title }}</li>
+                {% endfor %}
+            </ul>
         {% endif %}
-        
-        {% if suggestions %}
-        <div class="mt-6">
-            <h2 class="text-xl font-semibold mb-2">AI Suggestions</h2>
-            <ul class="list-disc pl-6 space-y-2 text-gray-700">
-                {% for s in suggestions %}
-                <li>{{ s }}</li>
+
+        {% if missing_keywords %}
+            <p class="font-semibold text-red-600">Missing Keywords:</p>
+            <ul class="list-disc list-inside mb-2">
+                {% for kw in missing_keywords %}
+                    <li>{{ kw|title }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <!-- Resume Input Form -->
+    <form method="POST" class="mb-6">
+        {% csrf_token %}
+        <label class="block mb-2 font-semibold" for="resume_text">Paste your resume text:</label>
+        <textarea name="resume_text" id="resume_text" rows="8" class="w-full p-2 border rounded" placeholder="Paste your resume here...">{{ request.POST.resume_text }}</textarea>
+        <button type="submit" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Analyze Resume</button>
+    </form>
+
+    <!-- Suggestions -->
+    {% if suggestions %}
+        <div class="mt-4">
+            <h3 class="text-lg font-semibold mb-2">Suggestions to Improve Your Resume:</h3>
+            <ul class="list-disc list-inside space-y-1">
+                {% for suggestion in suggestions %}
+                    <li>{{ suggestion }}</li>
                 {% endfor %}
             </ul>
         </div>
-        {% endif %}
-        
-    </div>
-    
+    {% endif %}
 </div>
-
-
 {% endblock %}

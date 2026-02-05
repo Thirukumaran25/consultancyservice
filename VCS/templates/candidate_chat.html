@@ -1,55 +1,88 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2 class="text-2xl font-bold mb-4">Candidate Chat</h2>
 
-<div id="chat-box" class="border p-4 h-64 overflow-y-scroll mb-4 bg-gray-50">
-    {% for chat in chats %}
-        <p><strong>You:</strong> {{ chat.question|safe }}</p>
-        <p><strong>Bot:</strong> {{ chat.answer|linebreaks|safe }}</p>
-        <hr class="my-2">
-    {% endfor %}
-</div>
+<div class="max-w-4xl mx-auto px-3 sm:px-6">
+    <h2 class="text-xl sm:text-2xl font-bold mb-4 text-center sm:text-left">
+        Candidate Chat
+    </h2>
 
-<div class="flex mb-4">
-    <input type="text" id="chat-input" placeholder="Ask a question..." class="border p-2 flex-1 mr-2">
-    <button id="send-btn" class="bg-blue-500 text-white px-4 py-2 rounded">Send</button>
-    <button id="clear-btn" class="bg-red-500 text-white px-4 py-2 rounded ml-2">Clear Chat</button>
-</div>
-
-<div class="mb-4">
-    <h4 class="font-semibold">Coding Questions:</h4>
-    <ul>
-        {% for s in coding_suggestions %}
-            <li class="suggestion cursor-pointer text-blue-700">{{ s.question }}</li>
+    <!-- Chat Box -->
+    <div id="chat-box" 
+         class="border p-3 sm:p-4 h-[50vh] sm:h-64 overflow-y-scroll mb-4 bg-gray-50 rounded">
+        {% for chat in chats %}
+            <p class="text-sm sm:text-base"><strong>You:</strong> {{ chat.question|safe }}</p>
+            <p class="text-sm sm:text-base"><strong>Bot:</strong> {{ chat.answer|linebreaks|safe }}</p>
+            <hr class="my-2">
         {% endfor %}
-    </ul>
-</div>
+    </div>
 
-<div class="mb-4">
-    <h4 class="font-semibold">HR Questions:</h4>
-    <ul>
-        {% for s in hr_suggestions %}
-            <li class="suggestion cursor-pointer text-blue-700">{{ s.question }}</li>
-        {% endfor %}
-    </ul>
-</div>
+    <!-- Input Area -->
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+        <input type="text" id="chat-input" 
+               placeholder="Ask a question..." 
+               class="border p-2 rounded w-full sm:flex-1">
 
-<div class="mb-4">
-    <h4 class="font-semibold">Behavioral Questions:</h4>
-    <ul>
-        {% for s in behavioral_suggestions %}
-            <li class="suggestion cursor-pointer text-blue-700">{{ s.question }}</li>
-        {% endfor %}
-    </ul>
+        <button id="send-btn" 
+                class="bg-blue-500 text-white px-4 py-2 rounded w-full sm:w-auto">
+            Send
+        </button>
+
+        <button id="clear-btn" 
+                class="bg-red-500 text-white px-4 py-2 rounded w-full sm:w-auto">
+            Clear
+        </button>
+    </div>
+
+    <!-- Suggestions Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <!-- Coding -->
+        <div class="bg-white p-3 rounded shadow">
+            <h4 class="font-semibold mb-2 text-center">Coding Questions</h4>
+            <ul class="space-y-1 text-sm">
+                {% for s in coding_suggestions %}
+                    <li class="suggestion cursor-pointer text-blue-700 hover:underline">
+                        {{ s.question }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- HR -->
+        <div class="bg-white p-3 rounded shadow">
+            <h4 class="font-semibold mb-2 text-center">HR Questions</h4>
+            <ul class="space-y-1 text-sm">
+                {% for s in hr_suggestions %}
+                    <li class="suggestion cursor-pointer text-blue-700 hover:underline">
+                        {{ s.question }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Behavioral -->
+        <div class="bg-white p-3 rounded shadow">
+            <h4 class="font-semibold mb-2 text-center">Behavioral Questions</h4>
+            <ul class="space-y-1 text-sm">
+                {% for s in behavioral_suggestions %}
+                    <li class="suggestion cursor-pointer text-blue-700 hover:underline">
+                        {{ s.question }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+    </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function(){
-    // Send message
+
     $('#send-btn').click(function(){
         let question = $('#chat-input').val();
         if(question.trim() === '') return;
+
         $.ajax({
             url: "{% url 'send_message' %}",
             method: "POST",
@@ -59,15 +92,18 @@ $(document).ready(function(){
             },
             success: function(data){
                 if(data.error) return;
-                $('#chat-box').append('<p><strong>You:</strong> ' + data.question + '</p>');
-                $('#chat-box').append('<p><strong>Bot:</strong> ' + data.answer + '</p><hr>');
+
+                $('#chat-box').append(
+                    '<p><strong>You:</strong> ' + data.question + '</p>' +
+                    '<p><strong>Bot:</strong> ' + data.answer + '</p><hr>'
+                );
+
                 $('#chat-input').val('');
                 $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
             }
         });
     });
 
-    // Clear chat
     $('#clear-btn').click(function(){
         if(confirm("Are you sure you want to clear all chat history?")){
             $.ajax({
@@ -84,12 +120,10 @@ $(document).ready(function(){
         }
     });
 
-    // Click suggestion to input
     $('.suggestion').click(function(){
         $('#chat-input').val($(this).text());
     });
 
-    // Filter suggestions dynamically as typing
     $('#chat-input').on('input', function(){
         let input = $(this).val().toLowerCase();
         $('.suggestion').each(function(){
@@ -100,6 +134,8 @@ $(document).ready(function(){
             }
         });
     });
+
 });
 </script>
+
 {% endblock %}

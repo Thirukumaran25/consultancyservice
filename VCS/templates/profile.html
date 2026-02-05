@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<!-- Boxicons CDN -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
 <div class="max-w-7xl mx-auto bg-gray-300 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
   <!-- Page Header -->
@@ -13,13 +16,13 @@
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
                    bg-green-100 text-green-700 px-4 py-1.5
                    rounded-full font-semibold text-sm">
-        ⭐ Pro User
+        <i class="bx bx-box"></i> Pro User
       </span>
     {% else %}
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
                    bg-red-100 text-red-600 px-4 py-1.5
                    rounded-full font-semibold text-sm">
-        Free User
+        <i class="bx bx-box"></i> Free User
       </span>
     {% endif %}
   </div>
@@ -107,67 +110,135 @@
 
       <!-- Quick Actions -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <a href="{% url 'saved_jobs' %}"
-           class="bg-white p-4 rounded-xl text-center hover:bg-gray-100 transition font-medium shadow">
-          💾 Saved Jobs
-        </a>
-        <a href="{% url 'applied_jobs' %}"
-           class="bg-white p-4 rounded-xl text-center hover:bg-gray-100 transition font-medium shadow">
-          📌 Applied Jobs
-        </a>
-      </div>
+
+  <!-- Saved Jobs Card -->
+  <a href="{% url 'saved_jobs' %}" 
+     class="group bg-white rounded-2xl shadow-md p-5 flex flex-col items-center justify-center
+            hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    
+    <div class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 mb-3">
+      <i class="bx bx-bookmark text-2xl"></i>
+    </div>
+    
+    <h3 class="text-lg font-semibold text-gray-800 group-hover:text-indigo-600 transition">
+      Saved Jobs
+    </h3>
+    <p class="text-sm text-gray-500 mt-1 text-center">All jobs you saved for later</p>
+  </a>
+
+  <!-- Applied Jobs Card -->
+  <a href="{% url 'applied_jobs' %}" 
+     class="group bg-white rounded-2xl shadow-md p-5 flex flex-col items-center justify-center
+            hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+    
+    <div class="w-14 h-14 flex items-center justify-center rounded-full bg-green-100 text-green-600 mb-3">
+      <i class="bx bx-check-circle text-2xl"></i>
+    </div>
+    
+    <h3 class="text-lg font-semibold text-gray-800 group-hover:text-green-600 transition">
+      Applied Jobs
+    </h3>
+    <p class="text-sm text-gray-500 mt-1 text-center">Jobs you have already applied for</p>
+  </a>
+
+</div>
+
 
       <!-- Pro Dashboard -->
       {% if profile.is_pro %}
-      <div class="bg-white rounded-2xl shadow-lg p-6">
-        <h3 class="text-xl font-semibold mb-4">⭐ Pro Tools</h3>
+      <div class="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-2xl shadow-xl p-6 sm:p-8">
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <a href="{% url 'subscription' %}" class="pro-card bg-white shadow">
-            <h4 class="font-semibold">Subscription</h4>
-            <p class="text-gray-500 text-sm">Billing & Renewals</p>
-          </a>
+  <div class="flex items-center justify-between mb-6">
+    <h3 class="text-xl sm:text-2xl font-semibold text-white flex items-center gap-2">
+      <i class="bx bx-crown text-2xl"></i> Pro Tools
+    </h3>
+    <span class="text-xs sm:text-sm bg-white/20 text-white px-3 py-1 rounded-full">
+      Premium Features
+    </span>
+  </div>
 
-          <a href="{% url 'resume_ai' %}" class="pro-card bg-white shadow">
-            <h4 class="font-semibold">AI Resume Optimizer</h4>
-            <p class="text-gray-500 text-sm">Improve your resume</p>
-          </a>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
-          <a href="{% url 'job_matching' %}" class="pro-card bg-white shadow">
-            <h4 class="font-semibold">Job Matching</h4>
-            <p class="text-gray-500 text-sm">Match % scores</p>
-          </a>
+    <!-- Card 1 -->
+    <a href="{% url 'subscription' %}"
+       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
+              transition transform hover:-translate-y-1">
 
-          <a href="{% url 'courses' %}" class="pro-card bg-white shadow">
-            <h4 class="font-semibold">Courses</h4>
-            <p class="text-gray-500 text-sm">Upskill yourself</p>
-          </a>
-        </div>
+      <div class="flex items-center justify-center w-12 h-12 rounded-full
+                  bg-indigo-100 text-indigo-600 mb-3 mx-auto">
+        <i class="bx bx-credit-card text-2xl"></i>
       </div>
+
+      <h4 class="text-center font-semibold text-gray-800">Subscription</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">Billing & Renewals</p>
+    </a>
+
+    <!-- Card 2 -->
+    <a href="{% url 'resume_ai' %}"
+       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
+              transition transform hover:-translate-y-1">
+
+      <div class="flex items-center justify-center w-12 h-12 rounded-full
+                  bg-green-100 text-green-600 mb-3 mx-auto">
+        <i class="bx bx-file text-2xl"></i>
+      </div>
+
+      <h4 class="text-center font-semibold text-gray-800">AI Resume Optimizer</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">Improve your resume</p>
+    </a>
+
+    <!-- Card 3 -->
+    <a href="{% url 'job_matching' %}"
+       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
+              transition transform hover:-translate-y-1">
+
+      <div class="flex items-center justify-center w-12 h-12 rounded-full
+                  bg-yellow-100 text-yellow-600 mb-3 mx-auto">
+        <i class="bx bx-briefcase text-2xl"></i>
+      </div>
+
+      <h4 class="text-center font-semibold text-gray-800">Job Matching</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">Match % scores</p>
+    </a>
+
+    <!-- Card 4 -->
+    <a href="{% url 'courses' %}"
+       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
+              transition transform hover:-translate-y-1">
+
+      <div class="flex items-center justify-center w-12 h-12 rounded-full
+                  bg-pink-100 text-pink-600 mb-3 mx-auto">
+        <i class="bx bx-book text-2xl"></i>
+      </div>
+
+      <h4 class="text-center font-semibold text-gray-800">Courses</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">Upskill yourself</p>
+    </a>
+
+  </div>
+</div>
+
       {% endif %}
 
     </div>
   </div>
 </div>
 
-<!-- MODAL: Edit Profile -->
+
 <div id="profileModal"
      class="fixed inset-0 z-50 hidden bg-black/50 flex justify-center items-center p-4">
 
   <div class="bg-white w-full max-w-lg max-h-[85vh] rounded-xl flex flex-col p-4 sm:p-6">
 
-    <!-- Modal Header -->
     <div class="flex justify-between items-center border-b pb-2">
       <h2 class="text-lg sm:text-xl font-semibold">Edit Profile</h2>
       <button onclick="closeModal()" class="text-red-500 text-2xl leading-none">&times;</button>
     </div>
 
-    <!-- Modal Body: Scrollable -->
     <form method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mt-3">
       {% csrf_token %}
       {{ form.as_p }}
 
-      <!-- Modal Footer -->
       <div class="sticky bottom-0 bg-white pt-3 border-t flex justify-end gap-2">
         <button type="button" onclick="closeModal()" class="bg-gray-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded">
           Cancel

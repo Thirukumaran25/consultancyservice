@@ -8,17 +8,30 @@
     </h1>
 
     <!-- Job Info -->
-    <div class="bg-white rounded-xl shadow p-6 mb-8">
-        <h2 class="text-2xl font-semibold">{{ application.job.job_title }}</h2>
-        <p class="text-gray-600">{{ application.job.company_name }}</p>
+    <div class="bg-white rounded-xl shadow p-6 mb-8"> 
+    <h2 class="text-2xl font-semibold flex items-center gap-2">
+        <i class='bx bx-briefcase'></i> {{ application.job.job_title }}
+    </h2>
+    <p class="text-gray-600 flex items-center gap-2">
+        <i class='bx bx-building'></i> {{ application.job.company_name }}
+    </p>
 
-        <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
-            <p><strong>📍 Location:</strong> {{ application.job.location }}</p>
-            <p><strong>💼 Experience:</strong> {{ application.job.experience }}</p>
-            <p><strong>💰 Salary:</strong> {{ application.job.salary_range }}</p>
-            <p><strong>📅 Applied On:</strong> {{ application.applied_at|date:"d M Y" }}</p>
+    <div class="grid grid-cols-2 gap-4 mt-4 text-sm text-gray-700">
+            <p class="flex items-center gap-1">
+                <i class='bx bx-map'></i> <strong>Location:</strong> {{ application.job.location }}
+            </p>
+            <p class="flex items-center gap-1">
+                <i class='bx bx-briefcase'></i> <strong>Experience:</strong> {{ application.job.experience }}
+            </p>
+            <p class="flex items-center gap-1">
+                <i class='bx bx-money'></i> <strong>Salary:</strong> {{ application.job.salary_range }}
+            </p>
+            <p class="flex items-center gap-1">
+                <i class='bx bx-calendar'></i> <strong>Applied On:</strong> {{ application.applied_at|date:"d M Y" }}
+            </p>
         </div>
     </div>
+
 
     <!-- Status Timeline -->
     <div class="bg-white rounded-xl shadow p-8">
@@ -40,7 +53,7 @@
             <li class="mb-8 ml-6">
                 <span class="absolute -left-3 flex items-center justify-center w-6 h-6
                     {% if application.status in 'VIEWED WAITING HIRED REJECTED' %}
-                        bg-yellow-500
+                        bg-blue-500
                     {% else %}
                         bg-gray-300
                     {% endif %}
@@ -52,7 +65,7 @@
             <li class="mb-8 ml-6">
                 <span class="absolute -left-3 flex items-center justify-center w-6 h-6
                     {% if application.status in 'WAITING HIRED' %}
-                        bg-purple-500
+                        bg-blue-500
                     {% else %}
                         bg-gray-300
                     {% endif %}

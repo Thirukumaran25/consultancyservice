@@ -1,82 +1,83 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="mt-6">
-    <a href="{% url 'job_list' %}" 
-       class="text-blue-600 hover:underline">
-        ← Back to list
+<!-- Boxicons CDN -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="mt-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Back Link -->
+    <a href="{% url 'job_list' %}" class="text-blue-600 hover:underline flex items-center gap-1 mb-4">
+        <i class='bx bx-left-arrow-alt'></i> Back to list
     </a>
-</div>
-<div class="max-w-5xl my-12 mx-auto p-6 bg-gray-200">
 
-    <h1 class="text-3xl text-blue-800 font-bold mb-2">{{ job.job_title }}</h1>
-    <p class="">{{ job.company_name }} | {{ job.location }}</p>
-    <p class="text-sm text-red-600 mt-1">Posted on {{ job.posted_at|date:"d M Y" }}</p>
+    <!-- Job Card -->
+    <div class="bg-gray-100 rounded-2xl shadow-lg p-6 sm:p-8">
+        <h1 class="text-3xl sm:text-4xl font-bold text-blue-800 mb-2">{{ job.job_title }}</h1>
+        <p class="text-gray-700 sm:text-lg">{{ job.company_name }} | {{ job.location }}</p>
+        <p class="text-sm text-red-600 mt-1">Posted on {{ job.posted_at|date:"d M Y" }}</p>
 
-    <div class="mt-6 grid md:grid-cols-2 gap-6">
-        <div>
-            <p><strong>💼 Experience:</strong> {{ job.experience }}</p>
-            <p><strong>💰 Salary:</strong> {{ job.salary_range }}</p>
+        <!-- Job Info Grid -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-800">
+            <div class="flex flex-col gap-2">
+                <p><i class='bx bx-briefcase text-blue-600 mr-1'></i> <strong>Experience:</strong> {{ job.experience }}</p>
+                <p><i class='bx bx-dollar-circle text-green-600 mr-1'></i> <strong>Salary:</strong> {{ job.salary_range }}</p>
+            </div>
+            <div class="flex flex-col gap-2">
+                <p><i class='bx bx-check-circle text-teal-600 mr-1'></i> <strong>Eligibility:</strong> {{ job.eligibility }}</p>
+            </div>
         </div>
-        <div>
-            <p><strong>✅ Eligibility:</strong> {{ job.eligibility }}</p>
+
+        <!-- Job Description -->
+        <div class="mt-6">
+            <p class="font-semibold text-gray-800 mb-1">Job Description:</p>
+            <p class="text-gray-700 leading-relaxed">{{ job.job_description }}</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-8 flex flex-col sm:flex-row sm:flex-wrap gap-4">
+            <!-- Save Job -->
+            {% if user.is_authenticated %}
+                {% if not user.is_superuser %}
+                <form method="post" action="{% url 'save_job' job.pk %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                        class="flex items-center gap-2 px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black rounded-lg font-semibold transition w-full sm:w-auto justify-center">
+                        <i class='bx bx-bookmark'></i>
+                        {% if user in job.saved_by.all %} Unsave {% else %} Save Job {% endif %}
+                    </button>
+                </form>
+                {% endif %}
+            {% else %}
+                <a href="/login/"
+                   class="flex items-center gap-2 px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black rounded-lg font-semibold transition w-full sm:w-auto justify-center">
+                    <i class='bx bx-bookmark'></i> Login to Save
+                </a>
+            {% endif %}
+
+            <!-- Apply Job -->
+            {% if user.is_authenticated %}
+                {% if has_applied %}
+                    <button
+                        class="flex items-center gap-2 px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold w-full sm:w-auto justify-center cursor-not-allowed"
+                        disabled>
+                        <i class='bx bx-check-circle'></i> Applied
+                    </button>
+                {% else %}
+                    {% if not user.is_superuser %}
+                    <a href="{% url 'apply_job' job.pk %}"
+                       class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition w-full sm:w-auto justify-center">
+                        <i class='bx bx-paper-plane'></i> Apply Now
+                    </a>
+                    {% endif %}
+                {% endif %}
+            {% else %}
+                <a href="{% url 'login' %}"
+                   class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition w-full sm:w-auto justify-center">
+                    <i class='bx bx-log-in'></i> Login to Apply
+                </a>
+            {% endif %}
         </div>
     </div>
-
-    <div class="mt-6">
-        <p class="font-semibold">Job Description:</p>
-        <p class="text-gray-700">{{ job.job_description }}</p>
-    </div>
-
-    <!-- ACTION BUTTONS -->
-    <div class="mt-8 flex flex-col md:flex-row gap-4">
-
-        <!-- Save Job -->
-        {% if user.is_authenticated %}
-        <form method="post" action="{% url 'save_job' job.pk %}">
-            {% csrf_token %}
-            {% if user.is_superuser %}
-                <p></p>
-            {% else %}
-            <button type="submit"
-                class="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black rounded font-semibold">
-                {% if user in job.saved_by.all %} Unsave {% else %} Save Job {% endif %}
-            </button>
-            {% endif %}
-        </form>
-        {% else %}
-            
-            <a href="/login/"
-               class="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black rounded font-semibold">
-                Login to Save
-            </a>
-        {% endif %}
-
-    {% if user.is_authenticated %}
-        {% if has_applied %}
-            
-            <button
-                class="px-6 py-3 bg-gray-400 text-white rounded font-semibold cursor-not-allowed"
-                disabled>
-                Applied ✔
-            </button>
-        {% else %}
-            {% if user.is_superuser %}
-                <p></p>
-            {% else %}
-            <a href="{% url 'apply_job' job.pk %}"
-            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold">
-                Apply Now
-            </a>
-            {% endif %}
-        {% endif %}
-        {% else %}
-            <a href="{% url 'login' %}"
-            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold">
-                Login to Apply
-            </a>
-    {% endif %}
-    </div>
-
 </div>
 {% endblock %}

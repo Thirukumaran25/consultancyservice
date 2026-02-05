@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 import re
 import json
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
 from django.utils.decorators import method_decorator
 from django.contrib import messages
 
@@ -34,25 +35,37 @@ def highlight_keywords(text, keywords):
 
 # Create your views here.
 
+FREE_CHAT_LIMIT = 10
+
+
 @csrf_exempt
 @login_required
 def chatbot_api(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         user_question = data.get('message', '').strip()
+
         if not user_question:
             return JsonResponse({'reply': "Please enter a question."})
 
-        # Exact match
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
+
+        if not profile.is_pro and user_chat_count >= 10:
+            return JsonResponse({
+                'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro to continue.",
+                'upgrade_required': True
+            })
+
         try:
             answer_obj = ChatQuestionAnswer.objects.get(question__iexact=user_question)
             answer = answer_obj.answer
         except ChatQuestionAnswer.DoesNotExist:
-            # Similar questions
             keywords = user_question.split()
             query = Q()
             for kw in keywords:
                 query |= Q(question__icontains=kw)
+
             similar_qs = ChatQuestionAnswer.objects.filter(query)[:3]
 
             if similar_qs.exists():
@@ -63,16 +76,14 @@ def chatbot_api(request):
             else:
                 answer = "Sorry, I don't have an answer for that."
 
-        # Save chat
         CandidateChat.objects.create(
             candidate=request.user,
             question=user_question,
             answer=answer
         )
-
         return JsonResponse({'reply': answer})
-    
     return JsonResponse({'reply': "Invalid request."})
+
 
 
 @login_required
@@ -95,6 +106,16 @@ def candidate_chat(request):
 def send_message(request):
     if request.method == 'POST':
         user_question = request.POST.get('question', '').strip()
+        
+        profile = Profile.objects.get(user=request.user)
+        user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
+
+        if not profile.is_pro and user_chat_count >= 10:
+            return JsonResponse({
+                'error': "You have reached your free limit of 10 questions. Upgrade to Pro.",
+                'upgrade_required': True
+            })
+        
         if user_question:
             try:
                 answer_obj = ChatQuestionAnswer.objects.get(question__iexact=user_question)
@@ -111,7 +132,7 @@ def send_message(request):
                     answer = "I found answers to similar questions:\n\n"
                     for q in similar_qs:
                         ans_text = highlight_keywords(q.answer, keywords)
-                        answer += f"Q: {q.question} (Category: {q.category})\nA: {ans_text}\n\n"
+                        answer += f"Q: {q.question} \nA: {ans_text}\n\n"
                 else:
                     answer = "Sorry, I don't have an answer for that."
 
@@ -213,6 +234,7 @@ def user_login(request):
 def signup(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
+
         if form.is_valid():
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
@@ -422,35 +444,43 @@ def job_matching(request):
 
 
 
-
 @login_required
 def ai_resume_optimizer(request):
     profile = request.user.profile
     suggestions = []
-    score = 0
+    score = None
+    matched_keywords = []
+    missing_keywords = []
 
     if request.method == "POST":
-        resume_text = request.POST.get("resume_text")
+        resume_text = request.POST.get("resume_text", "").lower().strip()
 
-        # Simple AI logic (can replace with OpenAI later)
-        keywords = ["python", "django", "sql", "project", "experience", "skills"]
+        if resume_text: 
+            keywords = ["python", "django", "sql", "project", "experience", "skills"]
 
-        matched = sum(1 for k in keywords if k in resume_text.lower())
-        score = int((matched / len(keywords)) * 100)
+            matched_keywords = [k for k in keywords if k in resume_text]
+            missing_keywords = [k for k in keywords if k not in resume_text]
 
-        suggestions = [
-            "Add more measurable achievements (numbers, %).",
-            "Include relevant job keywords in your resume.",
-            "Mention projects with tools and technologies used.",
-            "Improve formatting for readability.",
-            "Highlight certifications and training courses."
-        ]
+            score = int((len(matched_keywords) / len(keywords)) * 100)
+
+            suggestions = [
+                "Add more measurable achievements (numbers, %)." if "experience" in missing_keywords else "",
+                "Include relevant job keywords in your resume." if missing_keywords else "",
+                "Mention projects with tools and technologies used." if "project" in missing_keywords else "",
+                "Improve formatting for readability.",
+                "Highlight certifications and training courses."
+            ]
+  
+            suggestions = [s for s in suggestions if s]
 
     return render(request, "resume_ai.html", {
         "profile": profile,
         "suggestions": suggestions,
-        "score": score
+        "score": score,
+        "matched_keywords": matched_keywords,
+        "missing_keywords": missing_keywords
     })
+
 
 
 @login_required
@@ -606,10 +636,52 @@ def schedule_interview(request, application_id):
     return render(request, "admin/schedule_interview.html", {"application": application})
 
 
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Q
+from django.shortcuts import render
+
 @staff_member_required
 def admin_queries(request):
-    queries = SupportQuery.objects.order_by('-created_at')
-    return render(request, 'admin/queries.html', {'queries': queries})
+    queries = SupportQuery.objects.all().order_by('-created_at')
+
+    status_filter = request.GET.get('status', 'ALL')
+    priority_filter = request.GET.get('priority', 'ALL')
+    search_query = request.GET.get('search', '').strip()
+    sort = request.GET.get('sort', 'NEWEST')
+
+    # Status filter
+    if status_filter == 'OPEN':
+        queries = queries.filter(resolved=False)
+    elif status_filter == 'RESOLVED':
+        queries = queries.filter(resolved=True)
+
+    # Priority filter
+    if priority_filter != 'ALL':
+        queries = queries.filter(priority=priority_filter)
+
+    # Search filter
+    if search_query:
+        queries = queries.filter(
+            Q(user__username__icontains=search_query) |
+            Q(subject__icontains=search_query)
+        )
+
+    # Sorting
+    if sort == 'OLDEST':
+        queries = queries.order_by('created_at')
+    else:
+        queries = queries.order_by('-created_at')
+
+    return render(request, 'admin/queries.html', {
+        'queries': queries,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'search_query': search_query,
+        'sort': sort,
+    })
+
+
 
 @staff_member_required
 def escalate_query(request, query_id):
@@ -703,7 +775,8 @@ def admin_applications_by_status(request, status):
 
 
 
-# @login_required
+
+@login_required
 def notification_processor(request):
     if request.user.is_authenticated:
         notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:5]

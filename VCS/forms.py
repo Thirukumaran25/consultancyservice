@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from .models import Profile,JobApplication,Job
 from django.forms import ModelForm
 from django.core.exceptions import ValidationError
+import re
 
 
 class SignupForm(forms.ModelForm):
@@ -19,7 +20,24 @@ class SignupForm(forms.ModelForm):
             'username': forms.TextInput(attrs={'class': 'w-full mt-1 px-3 py-2 border rounded'}),
             'email': forms.EmailInput(attrs={'class': 'w-full mt-1 px-3 py-2 border rounded'}),
         }
-     
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if User.objects.filter(username=username).exists():
+            raise ValidationError("Username already exists. Please login.")
+
+        if username.isdigit():
+            raise ValidationError("Username cannot contain only numbers. Use letters also.")
+
+        if not re.match("^[A-Za-z_]+$", username):
+            raise ValidationError("Username can only contain letters and underscore.")
+
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise ValidationError("Email already registered.")
+        return email
 
 class ProfileForm(forms.ModelForm):
     class Meta:

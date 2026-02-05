@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="px-6 py-12 bg-gray-200">
+<!-- Boxicons CDN -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 
-    <h1 class="text-3xl font-bold mb-10 text-center text-blue-500">
-        💾 Applied Jobs
+<div class="px-4 sm:px-6 lg:px-12 py-12 bg-gray-200">
+
+    <h1 class="text-3xl font-bold mb-10 text-center text-blue-600 flex items-center justify-center gap-2">
+        <i class='bx bx-bookmark-check text-3xl'></i> Applied Jobs
     </h1>
 
     {% if applications %}
@@ -12,40 +15,42 @@
         {% for app in applications %}
         <!-- Job Card -->
         <a href="{% url 'application_tracker' app.id %}" class="block group">
-            <div class="bg-white border rounded-xl p-6 shadow hover:shadow-2xl
+            <div class="bg-white border rounded-2xl p-6 shadow-md hover:shadow-xl
                         transition-transform transform hover:-translate-y-1 hover:scale-102
                         hover:bg-indigo-50 cursor-pointer h-full flex flex-col justify-between">
 
+                <!-- Job Header -->
                 <div class="flex justify-between items-start">
                     <div>
-                        <h2 class="text-xl font-semibold text-blue-500 group-hover:text-indigo-600 transition">
+                        <h2 class="text-xl font-semibold text-blue-600 group-hover:text-indigo-600 transition">
                             {{ app.job.job_title }}
                         </h2>
-                        <p class="text-gray-500">{{ app.job.company_name }}</p>
+                        <p class="text-gray-500 flex items-center gap-1">
+                            <i class='bx bx-building-house'></i> {{ app.job.company_name }}
+                        </p>
                     </div>
-                    <span class="text-sm text-gray-400">
-                        {{ app.applied_at|date:"d M Y" }}
+                    <span class="text-sm text-gray-400 flex items-center gap-1">
+                        <i class='bx bx-calendar'></i> {{ app.applied_at|date:"d M Y" }}
                     </span>
                 </div>
 
                 <!-- Job Details -->
                 <div class="grid md:grid-cols-2 gap-2 mt-4 text-sm text-gray-600">
-                    <p><strong>📍 Location:</strong> {{ app.job.location }}</p>
-                    <p><strong>💼 Experience:</strong> {{ app.job.experience }}</p>
-                    <p><strong>💰 Salary:</strong> {{ app.job.salary_range }}</p>
+                    <p class="flex items-center gap-1"><i class='bx bx-map'></i> <strong>Location:</strong> {{ app.job.location }}</p>
+                    <p class="flex items-center gap-1"><i class='bx bx-briefcase'></i> <strong>Experience:</strong> {{ app.job.experience }}</p>
+                    <p class="flex items-center gap-1"><i class='bx bx-dollar-circle'></i> <strong>Salary:</strong> {{ app.job.salary_range }}</p>
                 </div>
 
                 <!-- Status -->
                 <div class="mt-4">
                     <span class="
-                        px-3 py-1 rounded text-white text-sm
+                        px-3 py-1 rounded-full text-white text-sm font-medium
                         {% if app.status == 'APPLIED' %} bg-blue-500
                         {% elif app.status == 'VIEWED' %} bg-yellow-500
                         {% elif app.status == 'WAITING' %} bg-purple-500
                         {% elif app.status == 'REJECTED' %} bg-red-500
                         {% elif app.status == 'HIRED' %} bg-green-500
-                        {% endif %}
-                    ">
+                        {% endif %}">
                         {{ app.get_status_display }}
                     </span>
                 </div>
@@ -56,8 +61,8 @@
     </div>
 
     {% else %}
-    <p class="text-center text-gray-500 mt-10">
-        You haven’t applied any jobs yet.
+    <p class="text-center text-gray-500 mt-10 flex items-center justify-center gap-2">
+        <i class='bx bx-info-circle text-lg'></i> You haven’t applied to any jobs yet.
     </p>
     {% endif %}
 
