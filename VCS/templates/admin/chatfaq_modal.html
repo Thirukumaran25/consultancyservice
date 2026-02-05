@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="bg-white rounded-2xl shadow p-6">
+
+    <div class="flex justify-between mb-4">
+        <h2 class="text-2xl font-bold">🤖 Chatbot FAQ Manager</h2>
+        <button onclick="openAddModal()" 
+           class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            + Add Question
+        </button>
+    </div>
+
+    <!-- Search -->
+    <form method="get" class="mb-4 flex">
+        <input type="text" name="search" value="{{ search }}" placeholder="Search question..."
+               class="border p-2 rounded w-full">
+        <button class="bg-blue-600 text-white px-4 ml-2 rounded">Search</button>
+    </form>
+
+    <!-- Table -->
+    <table class="w-full border">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="p-2 border">Question</th>
+                <th class="p-2 border">Category</th>
+                <th class="p-2 border">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for faq in faqs %}
+            <tr>
+                <td class="p-2 border">{{ faq.question }}</td>
+                <td class="p-2 border">{{ faq.category }}</td>
+                <td class="p-2 border text-center">
+                    <button onclick="openEditModal('{{ faq.id }}','{{ faq.question|escapejs }}','{{ faq.answer|escapejs }}','{{ faq.category }}')" 
+                            class="text-blue-600">Edit</button> |
+                    <button onclick="deleteFAQ({{ faq.id }})" class="text-red-600">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+<!-- MODAL -->
+<div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+
+    <div class="bg-white w-full max-w-xl rounded-lg p-6">
+        <h3 id="modalTitle" class="text-xl font-bold mb-4">Add Question</h3>
+
+        <form id="faqForm">
+            {% csrf_token %}
+            <input type="hidden" id="faq_id">
+
+            <div class="mb-3">
+                <label>Question</label>
+                <input type="text" id="question" class="w-full border p-2 rounded" required>
+            </div>
+
+            <div class="mb-3">
+                <label>Answer</label>
+                <textarea id="answer" class="w-full border p-2 rounded" rows="4" required></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label>Category</label>
+                <select id="category" class="w-full border p-2 rounded">
+                    <option>Python</option>
+                    <option>Java</option>
+                    <option>SQL</option>
+                    <option>HR</option>
+                    <option>Behavioral</option>
+                    <option>General</option>
+                </select>
+            </div>
+
+            <div class="flex justify-between mt-4">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+                <button type="button" onclick="closeModal()" class="text-gray-600">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<script>
+function openAddModal(){
+    document.getElementById('modalTitle').innerText = "Add Question";
+    document.getElementById('faq_id').value = "";
+    document.getElementById('question').value = "";
+    document.getElementById('answer').value = "";
+    document.getElementById('category').value = "Python";
+    document.getElementById('faqModal').classList.remove('hidden');
+}
+
+function openEditModal(id, question, answer, category){
+    document.getElementById('modalTitle').innerText = "Edit Question";
+    document.getElementById('faq_id').value = id;
+    document.getElementById('question').value = question;
+    document.getElementById('answer').value = answer;
+    document.getElementById('category').value = category;
+    document.getElementById('faqModal').classList.remove('hidden');
+}
+
+function closeModal(){
+    document.getElementById('faqModal').classList.add('hidden');
+}
+
+document.getElementById("faqForm").addEventListener("submit", function(e){
+    e.preventDefault();
+
+    let formData = new FormData();
+    formData.append("id", document.getElementById("faq_id").value);
+    formData.append("question", document.getElementById("question").value);
+    formData.append("answer", document.getElementById("answer").value);
+    formData.append("category", document.getElementById("category").value);
+    formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+    fetch("{% url 'chatfaq_save' %}", {
+        method: "POST",
+        body: formData
+    }).then(res => res.json())
+      .then(data => {
+        if(data.success){
+            location.reload();
+        }
+    });
+});
+
+function deleteFAQ(id){
+    if(confirm("Delete this question?")){
+        fetch(`/admin/chatfaq/delete/${id}/`)
+        .then(res => res.json())
+        .then(data => {
+            if(data.success){
+                location.reload();
+            }
+        });
+    }
+}
+</script>
+
+{% endblock %}

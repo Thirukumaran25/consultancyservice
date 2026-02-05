@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl bg-gray-200 mx-auto p-12">
+
+    <h1 class="text-3xl font-bold text-center text-blue-600 mb-8">
+        📊 Application Tracker
+    </h1>
+
+    <!-- Job Info -->
+    <div class="bg-white rounded-xl shadow p-6 mb-8">
+        <h2 class="text-2xl font-semibold">{{ application.job.job_title }}</h2>
+        <p class="text-gray-600">{{ application.job.company_name }}</p>
+
+        <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+            <p><strong>📍 Location:</strong> {{ application.job.location }}</p>
+            <p><strong>💼 Experience:</strong> {{ application.job.experience }}</p>
+            <p><strong>💰 Salary:</strong> {{ application.job.salary_range }}</p>
+            <p><strong>📅 Applied On:</strong> {{ application.applied_at|date:"d M Y" }}</p>
+        </div>
+    </div>
+
+    <!-- Status Timeline -->
+    <div class="bg-white rounded-xl shadow p-8">
+
+        <h3 class="text-xl font-semibold mb-6">Application Status</h3>
+
+        <ol class="relative border-l border-gray-300 ml-4">
+
+            <!-- Applied -->
+            <li class="mb-8 ml-6">
+                <span class="absolute -left-3 flex items-center justify-center w-6 h-6 bg-blue-500 rounded-full text-white">✓</span>
+                <h4 class="font-semibold text-blue-600">Applied</h4>
+                <p class="text-sm text-gray-500">
+                    {{ application.applied_at|date:"d M Y H:i" }}
+                </p>
+            </li>
+
+            <!-- Viewed -->
+            <li class="mb-8 ml-6">
+                <span class="absolute -left-3 flex items-center justify-center w-6 h-6
+                    {% if application.status in 'VIEWED WAITING HIRED REJECTED' %}
+                        bg-yellow-500
+                    {% else %}
+                        bg-gray-300
+                    {% endif %}
+                    rounded-full text-white">👀</span>
+                <h4 class="font-semibold">Viewed by Admin</h4>
+            </li>
+
+            <!-- Waiting -->
+            <li class="mb-8 ml-6">
+                <span class="absolute -left-3 flex items-center justify-center w-6 h-6
+                    {% if application.status in 'WAITING HIRED' %}
+                        bg-purple-500
+                    {% else %}
+                        bg-gray-300
+                    {% endif %}
+                    rounded-full text-white">⏳</span>
+                <h4 class="font-semibold">Waiting for Action</h4>
+            </li>
+
+            <!-- Final -->
+            <li class="ml-6">
+                <span class="absolute -left-3 flex items-center justify-center w-6 h-6
+                    {% if application.status == 'HIRED' %}
+                        bg-green-500
+                    {% elif application.status == 'REJECTED' %}
+                        bg-red-500
+                    {% else %}
+                        bg-gray-300
+                    {% endif %}
+                    rounded-full text-white">🏁</span>
+
+                <h4 class="font-semibold">
+                    {% if application.status == 'HIRED' %}
+                        Hired 🎉
+                    {% elif application.status == 'REJECTED' %}
+                        Rejected ❌
+                    {% else %}
+                        Final Decision Pending
+                    {% endif %}
+                </h4>
+            </li>
+
+        </ol>
+    </div>
+
+</div>
+
+{% endblock %}

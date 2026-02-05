@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="relative overflow-hidden">
+
+    <!-- Animated Gradient Background -->
+    <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-pink-500 animate-gradient"></div>
+
+    <!-- Floating Blobs -->
+    <div class="absolute top-20 left-10 w-72 h-72 bg-white opacity-10 rounded-full animate-float"></div>
+    <div class="absolute bottom-20 right-10 w-96 h-96 bg-white opacity-10 rounded-full animate-float-slow"></div>
+
+    <!-- Content -->
+    <div class="relative z-10 text-center text-white py-32 px-4">
+        <h1 class="text-4xl md:text-6xl font-bold mb-6">
+            Build Your Career With Experts
+        </h1>
+        <p class="text-lg md:text-xl max-w-2xl mx-auto">
+            Free & paid consulting services to help you land your dream job
+        </p>
+    </div>
+
+    <section class="relative grid md:grid-cols-2 gap-8 px-6 pb-12">
+    <div class="bg-green-50 p-6 rounded-lg">
+        <h2 class="text-2xl font-bold mb-3">Free Services</h2>
+        <p class="mb-2">1.Limited AI chatbot access</p>
+        <p class="mb-2">2.Daily one job matching alert</p>
+        <p class="mb-2"></p>
+    </div>
+    
+    <div class="bg-blue-50 p-6 rounded-lg">
+        <h2 class="text-2xl font-bold mb-3">Paid Services</h2>
+        
+        <p class="mb-2">1.AI resume optimization</p>
+        <p class="mb-2">2.Company-specific interview question database via chatbot</p>
+        <p class="mb-2">3.WhatsApp real-time notifications for matches and consultant responses</p>
+        <p class="mb-2">4.Advanced job matching with match percentage scores</p>
+        <p class="mb-2">5.Priority consultant access with guaranteed response</p>
+        <p class="mb-2">6.Access to VTS training courses and certificate</p>
+        <p class="mb-2"></p>
+    </div>
+</section>
+</section>
+
+
+{% endblock %}

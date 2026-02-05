@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="mt-6">
+    <a href="{% url 'admin_dashboard' %}" class="text-blue-600 hover:underline">
+        ← Back to Dashboard
+    </a>
+</div>
+
+<h1 class="text-2xl font-bold mb-6">📨 Support Queries</h1>
+
+<div class="overflow-x-auto" x-data="{ activeQueryId: null }">
+
+<table class="min-w-full bg-white rounded shadow">
+<thead>
+<tr class="bg-gray-200">
+    <th class="p-3">User</th>
+    <th class="p-3">Subject</th>
+    <th class="p-3">Priority</th>
+    <th class="p-3">Status</th>
+    <th class="p-3">Action</th>
+</tr>
+</thead>
+
+<tbody>
+{% for q in queries %}
+<tr class="border-t">
+    <td class="p-3">{{ q.user.username }}</td>
+    <td class="p-3">{{ q.subject }}</td>
+
+    <td class="p-3">
+        <span class="px-2 py-1 rounded text-xs
+        {% if q.priority == 'HIGH' %}bg-red-200
+        {% elif q.priority == 'ESCALATED' %}bg-red-400 text-white
+        {% else %}bg-gray-200{% endif %}">
+            {{ q.priority }}
+        </span>
+    </td>
+
+    <td class="p-3">
+        {% if q.resolved %}
+            <span class="text-green-600 font-semibold">Resolved</span>
+        {% else %}
+            <span class="text-orange-600 font-semibold">Open</span>
+        {% endif %}
+    </td>
+
+    <td class="p-3 space-x-2">
+        <button @click="activeQueryId={{ q.id }}" class="text-blue-600 hover:underline">
+            View
+        </button>
+
+        {% if not q.resolved %}
+        <a href="{% url 'escalate_query' q.id %}" class="text-red-600 hover:underline">Escalate</a>
+        <a href="{% url 'mark_query_resolved' q.id %}" class="text-green-600 hover:underline">Resolve</a>
+        {% endif %}
+    </td>
+</tr>
+
+<!-- MODAL -->
+<div x-show="activeQueryId === {{ q.id }}"
+     x-transition
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+
+    <div class="bg-white w-full max-w-lg mx-3 rounded-lg shadow-lg p-6"
+         @click.away="activeQueryId=null">
+
+        <h2 class="text-xl font-bold mb-4">📄 Query Details</h2>
+
+        <p><strong>User:</strong> {{ q.user.username }}</p>
+        <p><strong>Subject:</strong> {{ q.subject }}</p>
+
+        <div class="border p-3 rounded bg-gray-100 my-3">
+            {{ q.message }}
+        </div>
+
+        {% if q.reply %}
+        <div class="bg-green-100 p-3 rounded mb-3">
+            <strong>Admin Reply:</strong><br>
+            {{ q.reply }}
+        </div>
+        {% endif %}
+
+        {% if not q.resolved %}
+        <form method="post" action="{% url 'reply_query' q.id %}">
+            {% csrf_token %}
+            <textarea name="reply" class="w-full border rounded p-2 mb-3"
+                      rows="4" placeholder="Type reply..." required></textarea>
+
+            <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">
+                Send Reply & Resolve
+            </button>
+        </form>
+        {% endif %}
+
+        <button @click="activeQueryId=null"
+                class="mt-4 bg-gray-500 text-white px-4 py-2 rounded w-full">
+            Close
+        </button>
+    </div>
+</div>
+
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+
+{% endblock %}

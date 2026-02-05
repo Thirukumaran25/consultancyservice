@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mt-6">
+    <a href="{% url 'job_list' %}" 
+       class="text-blue-600 hover:underline">
+        ← Back to list
+    </a>
+</div>
+<div class="max-w-5xl my-12 mx-auto p-6 bg-gray-200">
+
+    <h1 class="text-3xl text-blue-800 font-bold mb-2">{{ job.job_title }}</h1>
+    <p class="">{{ job.company_name }} | {{ job.location }}</p>
+    <p class="text-sm text-red-600 mt-1">Posted on {{ job.posted_at|date:"d M Y" }}</p>
+
+    <div class="mt-6 grid md:grid-cols-2 gap-6">
+        <div>
+            <p><strong>💼 Experience:</strong> {{ job.experience }}</p>
+            <p><strong>💰 Salary:</strong> {{ job.salary_range }}</p>
+        </div>
+        <div>
+            <p><strong>✅ Eligibility:</strong> {{ job.eligibility }}</p>
+        </div>
+    </div>
+
+    <div class="mt-6">
+        <p class="font-semibold">Job Description:</p>
+        <p class="text-gray-700">{{ job.job_description }}</p>
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="mt-8 flex flex-col md:flex-row gap-4">
+
+        <!-- Save Job -->
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'save_job' job.pk %}">
+            {% csrf_token %}
+            {% if user.is_superuser %}
+                <p></p>
+            {% else %}
+            <button type="submit"
+                class="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black rounded font-semibold">
+                {% if user in job.saved_by.all %} Unsave {% else %} Save Job {% endif %}
+            </button>
+            {% endif %}
+        </form>
+        {% else %}
+            
+            <a href="/login/"
+               class="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-black rounded font-semibold">
+                Login to Save
+            </a>
+        {% endif %}
+
+    {% if user.is_authenticated %}
+        {% if has_applied %}
+            
+            <button
+                class="px-6 py-3 bg-gray-400 text-white rounded font-semibold cursor-not-allowed"
+                disabled>
+                Applied ✔
+            </button>
+        {% else %}
+            {% if user.is_superuser %}
+                <p></p>
+            {% else %}
+            <a href="{% url 'apply_job' job.pk %}"
+            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold">
+                Apply Now
+            </a>
+            {% endif %}
+        {% endif %}
+        {% else %}
+            <a href="{% url 'login' %}"
+            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold">
+                Login to Apply
+            </a>
+    {% endif %}
+    </div>
+
+</div>
+{% endblock %}

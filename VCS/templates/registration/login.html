@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+<head>
+    <title>Login | VetriConsultancy</title>
+    <style>
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .animate-gradient {
+            background-size: 300% 300%;
+            animation: gradient 12s ease infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .animate-float {
+            animation: float 8s ease-in-out infinite;
+        }
+        
+        .animate-float-slow {
+            animation: float 14s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+{% block content %}
+<body>
+<section class="relative overflow-hidden min-h-screen flex items-center justify-center">
+<div class="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient"></div>
+    <div class="absolute top-20 left-10 w-72 h-72 bg-white opacity-10 rounded-full animate-float"></div>
+    <div class="absolute bottom-20 right-10 w-96 h-96 bg-white opacity-10 rounded-full animate-float-slow"></div>
+
+<div class="relative bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+
+    <h2 class="text-2xl font-bold text-center mb-6">Login to VetriConsultancy</h2>
+
+    {% if error %}
+    <script>
+        alert("{{ error }}");
+    </script>
+    {% endif %}
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+
+        <div>
+            <label class="block text-sm font-medium">Username</label>
+            <input type="text" name="username" required
+                   class="w-full mt-1 px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-400">
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium">Password</label>
+            <input type="password" name="password" required
+                   class="w-full mt-1 px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-400">
+        </div>
+
+        {% if form.errors %}
+        <p class="text-red-500 text-sm">Invalid username or password</p>
+        {% endif %}
+
+        <button type="submit"
+                class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+            Login
+        </button>
+    </form>
+
+    <p class="text-center text-sm mt-4">
+        Don’t have an account?
+        <a href="/signup/" class="text-blue-600 font-semibold">Sign up</a>
+    </p>
+</div>
+</section>
+
+</body>
+{% endblock %}

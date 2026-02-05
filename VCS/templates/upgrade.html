@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+<head>
+  <title>Upgrade</title>
+</head>
+
+{% block content %}
+
+<body class="bg-gradient-to-r from-indigo-500 to-purple-600 min-h-screen flex items-center justify-center">
+    
+<div class="bg-white p-8 rounded-xl shadow-xl w-96 text-center">
+    <h2 class="text-2xl font-bold mb-4">Upgrade to Pro</h2>
+    <p class="text-gray-600 mb-4">Unlock premium job features</p>
+    
+    <ul class="text-left mb-6 space-y-2">
+        <li>✅ Unlimited Job Applications</li>
+        <li>✅ Resume Visibility to Recruiters</li>
+        <li>✅ Priority Job Alerts</li>
+        <li>✅ Save Unlimited Jobs</li>
+    </ul>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <button class="bg-indigo-600 w-full text-white py-2 rounded hover:bg-indigo-700">
+            Upgrade Now
+        </button>
+    </form>
+
+</div>
+
+</body>
+
+
+{% endblock %}

@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto bg-gray-300 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">
+      My Profile
+    </h1>
+
+    {% if profile.is_pro %}
+      <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
+                   bg-green-100 text-green-700 px-4 py-1.5
+                   rounded-full font-semibold text-sm">
+        ⭐ Pro User
+      </span>
+    {% else %}
+      <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
+                   bg-red-100 text-red-600 px-4 py-1.5
+                   rounded-full font-semibold text-sm">
+        Free User
+      </span>
+    {% endif %}
+  </div>
+
+  <!-- Upgrade Banner for Free Users -->
+  {% if not profile.is_pro %}
+  <div class="bg-indigo-600 text-white p-5 rounded-xl flex flex-col sm:flex-row
+              sm:items-center sm:justify-between gap-4 shadow-lg">
+    <p class="font-medium">
+      Unlock AI Resume Optimizer, Job Matching & Premium Courses
+    </p>
+    <a href="{% url 'upgrade_pro' %}"
+       class="bg-white text-indigo-600 font-semibold px-5 py-2 rounded-full text-center hover:scale-105 transition">
+      Upgrade to Pro
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Main Layout -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- LEFT: Profile Summary -->
+    <div class="bg-white rounded-2xl p-6 shadow-lg lg:sticky lg:top-6 space-y-4">
+
+      <div class="flex items-center gap-4 mb-4">
+        <div class="h-16 w-16 rounded-full bg-indigo-600
+                    flex items-center justify-center
+                    text-white text-2xl font-bold">
+          {{ user.username|slice:":1"|upper }}
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold">{{ user.username }}</h2>
+          <p class="text-sm text-gray-600">{{ user.email }}</p>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-sm text-gray-700">
+        <p><b>Location:</b> {{ profile.location }}</p>
+        <p><b>Experience:</b> {{ profile.experience }}</p>
+        <p><b>Education:</b> {{ profile.education }}</p>
+      </div>
+
+      {% if profile.resume %}
+      <a href="{{ profile.resume.url }}"
+         class="mt-4 inline-block w-full text-center
+                bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">
+        Download Resume
+      </a>
+      {% endif %}
+
+      <!-- Profile Completion Bar -->
+      <div class="mt-4">
+        <h3 class="text-sm font-medium text-gray-600 mb-1">Profile Completion</h3>
+        <div class="w-full bg-gray-300 rounded-full h-4">
+          <div class="h-4 rounded-full transition-all duration-500"
+               style="width: {{ completion }}%;
+                      background-color: {% if completion < 50 %}#f87171{% elif completion < 80 %}#facc15{% else %}#22c55e{% endif %}"></div>
+        </div>
+        <p class="text-xs text-gray-500 mt-1">
+          {{ completion }}% complete
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Profile Details & Actions -->
+    <div class="lg:col-span-2 space-y-6">
+
+      <!-- Profile Details Card -->
+      <div class="bg-white rounded-2xl shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Profile Details</h3>
+          <button onclick="openModal()"
+                  class="bg-indigo-600 text-white px-4 py-2
+                         rounded-lg hover:bg-indigo-700 text-sm transition">
+            Edit Profile
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <p><b>Phone:</b> {{ profile.phone }}</p>
+          <p><b>Skills:</b> {{ profile.skills }}</p>
+          <p class="sm:col-span-2"><b>Bio:</b> {{ profile.bio }}</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="{% url 'saved_jobs' %}"
+           class="bg-white p-4 rounded-xl text-center hover:bg-gray-100 transition font-medium shadow">
+          💾 Saved Jobs
+        </a>
+        <a href="{% url 'applied_jobs' %}"
+           class="bg-white p-4 rounded-xl text-center hover:bg-gray-100 transition font-medium shadow">
+          📌 Applied Jobs
+        </a>
+      </div>
+
+      <!-- Pro Dashboard -->
+      {% if profile.is_pro %}
+      <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-xl font-semibold mb-4">⭐ Pro Tools</h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <a href="{% url 'subscription' %}" class="pro-card bg-white shadow">
+            <h4 class="font-semibold">Subscription</h4>
+            <p class="text-gray-500 text-sm">Billing & Renewals</p>
+          </a>
+
+          <a href="{% url 'resume_ai' %}" class="pro-card bg-white shadow">
+            <h4 class="font-semibold">AI Resume Optimizer</h4>
+            <p class="text-gray-500 text-sm">Improve your resume</p>
+          </a>
+
+          <a href="{% url 'job_matching' %}" class="pro-card bg-white shadow">
+            <h4 class="font-semibold">Job Matching</h4>
+            <p class="text-gray-500 text-sm">Match % scores</p>
+          </a>
+
+          <a href="{% url 'courses' %}" class="pro-card bg-white shadow">
+            <h4 class="font-semibold">Courses</h4>
+            <p class="text-gray-500 text-sm">Upskill yourself</p>
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Profile -->
+<div id="profileModal"
+     class="fixed inset-0 z-50 hidden bg-black/50 flex justify-center items-center p-4">
+
+  <div class="bg-white w-full max-w-lg max-h-[85vh] rounded-xl flex flex-col p-4 sm:p-6">
+
+    <!-- Modal Header -->
+    <div class="flex justify-between items-center border-b pb-2">
+      <h2 class="text-lg sm:text-xl font-semibold">Edit Profile</h2>
+      <button onclick="closeModal()" class="text-red-500 text-2xl leading-none">&times;</button>
+    </div>
+
+    <!-- Modal Body: Scrollable -->
+    <form method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mt-3">
+      {% csrf_token %}
+      {{ form.as_p }}
+
+      <!-- Modal Footer -->
+      <div class="sticky bottom-0 bg-white pt-3 border-t flex justify-end gap-2">
+        <button type="button" onclick="closeModal()" class="bg-gray-300 px-3 py-1.5 sm:px-4 sm:py-2 rounded">
+          Cancel
+        </button>
+
+        <button type="submit" class="bg-blue-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded">
+          Save
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- Modal Script -->
+<script>
+function openModal() {
+  document.getElementById("profileModal").classList.remove("hidden");
+  document.getElementById("profileModal").classList.add("flex");
+}
+function closeModal() {
+  document.getElementById("profileModal").classList.add("hidden");
+}
+</script>
+
+<style>
+  .pro-card {
+    @apply p-4 rounded-xl text-center hover:scale-105 transition font-medium;
+  }
+</style>
+
+{% endblock %}

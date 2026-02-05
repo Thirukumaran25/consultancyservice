@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1 class="text-3xl font-bold mb-8 flex items-center gap-2">
+    📊 Admin Dashboard
+</h1>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+<!-- Jobs -->
+<a href="{% url 'admin_jobs' %}" 
+class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:scale-105 transition transform">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-sm opacity-80">Total Jobs</p>
+        <h2 class="text-3xl font-bold">{{ total_jobs }}</h2>
+    </div>
+    <div class="text-4xl">💼</div>
+</div>
+
+<p class="mt-4 text-sm opacity-80">Manage job postings</p>
+</a>
+
+<!-- Candidates -->
+<a href="{% url 'admin_candidates' %}" 
+class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-green-500 to-green-700 text-white hover:scale-105 transition transform">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-sm opacity-80">Candidates</p>
+        <h2 class="text-3xl font-bold">{{ total_candidates }}</h2>
+    </div>
+    <div class="text-4xl">👨‍💻</div>
+</div>
+
+<p class="mt-4 text-sm opacity-80">View all candidates</p>
+</a>
+
+<!-- Applications -->
+<a href="{% url 'admin_analytics' %}" 
+class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-yellow-400 to-yellow-600 text-white hover:scale-105 transition transform">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-sm opacity-80">Applications</p>
+        <h2 class="text-3xl font-bold">{{ total_applications }}</h2>
+    </div>
+    <div class="text-4xl">📑</div>
+</div>
+
+<p class="mt-4 text-sm opacity-80">Track job applications</p>
+</a>
+
+<!-- Queries -->
+<a href="{% url 'admin_queries' %}" 
+class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-red-500 to-red-700 text-white hover:scale-105 transition transform">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-sm opacity-80">Open Queries</p>
+        <h2 class="text-3xl font-bold">{{ pending_queries }}</h2>
+    </div>
+    <div class="text-4xl">❗</div>
+</div>
+
+<p class="mt-4 text-sm opacity-80">Support requests</p>
+</a>
+
+</div>
+
+<!-- Optional analytics section -->
+<div class="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+<div class="bg-white rounded-2xl shadow p-6">
+    <h3 class="text-xl font-semibold mb-4">📈 Quick Stats</h3>
+    <ul class="space-y-2 text-gray-600">
+        <li>✔ Active Jobs: {{ total_jobs }}</li>
+        <li>✔ Registered Candidates: {{ total_candidates }}</li>
+        <li>✔ Total Applications: {{ total_applications }}</li>
+        <li>✔ Pending Queries: {{ pending_queries }}</li>
+    </ul>
+</div>
+
+<div class="bg-white rounded-2xl shadow p-6">
+    <h3 class="text-xl font-semibold mb-4">⚡ Admin Actions</h3>
+    <div class="grid grid-cols-2 gap-4">
+        <a href="{% url 'chatfaq' %}" class="bg-blue-600 text-white p-3 rounded-lg text-center hover:bg-blue-700">Chatbot FAQ</a>  
+    </div>
+</div>
+</div>
+
+{% endblock %}

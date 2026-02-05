@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="px-4 sm:px-6 bg-gray-200 lg:px-10 py-6">
+
+    <!-- Page Title -->
+    <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-6 text-center sm:text-left">
+        Search results for "{{ query }}"
+    </h2>
+
+    {% if results %}
+        <!-- Responsive Grid -->
+        <div class="
+            grid
+            grid-cols-1
+            sm:grid-cols-2
+            lg:grid-cols-3
+            gap-4 sm:gap-6
+        ">
+            {% for service in results %}
+            <a href="{% url 'job_detail' service.pk %}"
+               class="group block h-full">
+
+                <!-- Card -->
+                <div class="
+                    h-full
+                    bg-white
+                    border
+                    rounded-xl
+                    p-4 sm:p-6
+                    shadow-sm
+                    hover:shadow-xl
+                    transition
+                    duration-300
+                    flex
+                    flex-col
+                    justify-between
+                ">
+
+                    <!-- Title & Date -->
+                    <div class="flex flex-col gap-2">
+                        <h3 class="
+                            text-lg sm:text-xl
+                            font-semibold
+                            text-blue-600
+                            group-hover:text-indigo-600
+                            transition
+                        ">
+                            {{ service.job_title }}
+                        </h3>
+
+                        <p class="text-sm sm:text-base text-gray-600">
+                            {{ service.company_name }}
+                        </p>
+
+                        <span class="text-xs sm:text-sm text-gray-400">
+                            {{ service.posted_at|date:"d M Y" }}
+                        </span>
+                    </div>
+
+                    <!-- Job Info -->
+                    <div class="
+                        mt-4
+                        grid
+                        grid-cols-1
+                        sm:grid-cols-2
+                        gap-2
+                        text-sm
+                        text-gray-700
+                    ">
+                        <p>📍 {{ service.location }}</p>
+                        <p>💼 {{ service.experience }}</p>
+                        <p class="sm:col-span-2">💰 {{ service.salary_range }}</p>
+                    </div>
+
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <p class="text-center text-gray-500 mt-10">
+            No results found.
+        </p>
+    {% endif %}
+
+</div>
+{% endblock %}

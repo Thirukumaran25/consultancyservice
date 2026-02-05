@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="px-6 py-12 ">
+
+    <h1 class="text-3xl font-bold mb-10 text-center text-blue-500">
+        💾 Saved Jobs
+    </h1>
+
+    {% if jobs %}
+     <div class="max-w-7xl mx-auto grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        {% for job in jobs %}
+        <!-- Job Card -->
+        <a href="{% url 'job_detail' job.pk %}" class="block group">
+            <div class="bg-white border rounded-xl p-6 shadow hover:shadow-2xl
+                        transition-transform transform hover:-translate-y-1 hover:scale-102
+                        hover:bg-indigo-50 cursor-pointer h-full flex flex-col justify-between">
+
+                <!-- Title & Company -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <div class="mb-2 md:mb-0">
+                        <h2 class="text-xl font-semibold text-blue-500 group-hover:text-indigo-600 transition">
+                            {{ job.job_title }}
+                        </h2>
+                        <p class="text-gray-500">{{ job.company_name }}</p>
+                    </div>
+                    <span class="text-sm text-gray-400 md:text-gray-500">
+                        {{ job.posted_at|date:"d M Y" }}
+                    </span>
+                </div>
+
+                <!-- Job Details -->
+                <div class="grid md:grid-cols-2 gap-2 mt-4 text-sm text-gray-600">
+                    <p><strong>📍 Location:</strong> {{ job.location }}</p>
+                    <p><strong>💼 Experience:</strong> {{ job.experience }}</p>
+                    <p><strong>💰 Salary:</strong> {{ job.salary_range }}</p>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+
+    {% else %}
+    <p class="text-center text-gray-500 mt-10">
+        You haven’t saved any jobs yet.
+    </p>
+    {% endif %}
+
+</div>
+{% endblock %}

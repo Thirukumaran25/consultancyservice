@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">📅 Schedule Interview</h1>
+
+<div class="bg-white p-6 rounded shadow max-w-lg">
+
+<p class="mb-4">
+    <strong>Candidate:</strong> {{ application.user.username }} <br>
+    <strong>Job:</strong> {{ application.job.job_title }}
+</p>
+
+<form method="post">
+    {% csrf_token %}
+
+    <label class="block mb-2">Interview Date & Time</label>
+    <input type="datetime-local" name="scheduled_at"
+           class="border px-4 py-2 rounded w-full mb-4" required>
+
+    <label class="block mb-2">Notes</label>
+    <textarea name="notes"
+              class="border px-4 py-2 rounded w-full mb-4"></textarea>
+
+    <button class="bg-blue-600 text-white px-6 py-2 rounded">
+        Schedule
+    </button>
+</form>
+
+</div>
+
+{% endblock %}

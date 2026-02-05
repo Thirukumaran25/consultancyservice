@@ -1,0 +1,37 @@
+<h2>Applications for {{ job.job_title }} at {{ job.company_name }}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>Applicant</th>
+            <th>Resume</th>
+            <th>Applied At</th>
+            <th>Status</th>
+        </tr>
+        {% for app in applications %}
+        <tr>
+            <td>{{ app.user.username }}</td>
+            <td>
+                {% if app.resume %}
+                <a href="{{ app.resume.url }}" target="_blank">View Resume</a>
+                {% else %}
+                N/A
+                {% endif %}
+            </td>
+            <td>{{ app.applied_at|date:"Y-m-d H:i" }}</td>
+            <td>
+                <select name="status_{{ app.id }}">
+                    {% for key, value in app.STATUS_CHOICES %}
+                        <option value="{{ key }}" {% if app.status == key %}selected{% endif %}>
+                            {{ value }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <button type="submit">Update Status</button>
+</form>

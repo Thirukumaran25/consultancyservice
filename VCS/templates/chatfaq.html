@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<body class="bg-gray-100 min-h-screen">
+
+<div class="container mx-auto py-6" x-data="chatFAQApp()">
+  <h1 class="text-2xl font-bold mb-6">Chatbot & FAQ Dashboard</h1>
+
+  <!-- Add Question Button -->
+  <template x-if="isProUser">
+    <button @click="openAddModal()" class="bg-green-500 text-white px-4 py-2 rounded mb-4 hover:bg-green-600">
+      Add New Question
+    </button>
+  </template>
+
+  <!-- Add/Edit Question Modal -->
+  <div x-show="modalOpen" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white p-6 rounded-lg shadow w-full max-w-lg" @click.away="closeModal()">
+      <h2 class="text-lg font-semibold mb-4" x-text="modalTitle"></h2>
+      <form @submit.prevent="saveQuestion()" class="space-y-4">
+        <div>
+          <label>Company Name</label>
+          <input type="text" x-model="form.company" class="border rounded px-3 py-2 w-full">
+        </div>
+        <div>
+          <label>Category</label>
+          <input type="text" x-model="form.category" class="border rounded px-3 py-2 w-full">
+        </div>
+        <div>
+          <label>Question</label>
+          <textarea x-model="form.question" class="border rounded px-3 py-2 w-full"></textarea>
+        </div>
+        <div>
+          <label>Answer</label>
+          <textarea x-model="form.answer" class="border rounded px-3 py-2 w-full"></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" x-model="form.is_pro">
+          <label>Pro Question</label>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="closeModal()" class="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Questions Table -->
+  <div class="bg-white p-4 rounded-lg shadow mb-6">
+    <h2 class="text-lg font-semibold mb-4">All Questions</h2>
+    <table class="w-full border">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border px-2 py-1">ID</th>
+          <th class="border px-2 py-1">Company</th>
+          <th class="border px-2 py-1">Category</th>
+          <th class="border px-2 py-1">Question</th>
+          <th class="border px-2 py-1">Pro</th>
+          <th class="border px-2 py-1">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in questions %}
+        <tr>
+          <td class="border px-2 py-1">{{ q.id }}</td>
+          <td class="border px-2 py-1">{{ q.company }}</td>
+          <td class="border px-2 py-1">{{ q.category }}</td>
+          <td class="border px-2 py-1">{{ q.question|truncatechars:50 }}</td>
+          <td class="border px-2 py-1">{{ q.is_pro }}</td>
+          <td class="border px-2 py-1 flex gap-2">
+            <button @click="openEditModal({{ q.id }}, '{{ q.company|escapejs }}', '{{ q.category|escapejs }}', '{{ q.question|escapejs }}', '{{ q.answer|escapejs }}', {{ q.is_pro|yesno:'true,false' }})"
+              class="text-blue-600 hover:underline">Edit</button>
+            <a href="{% url 'delete_question' q.id %}" onclick="return confirm('Are you sure?')" class="text-red-600 hover:underline">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Chatbot -->
+  <div class="bg-white p-4 rounded-lg shadow">
+    <h2 class="text-lg font-semibold mb-4">Ask the Chatbot</h2>
+    <div class="mb-4">
+      <textarea x-model="chatInput" class="border rounded px-3 py-2 w-full" placeholder="Type your question here..." :disabled="!isProUser"></textarea>
+      <template x-if="!isProUser">
+        <p class="text-red-500 mt-1">Free users cannot ask questions. Upgrade to Pro to use the chatbot.</p>
+      </template>
+    </div>
+    <button @click="askChatbot()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600" :disabled="!chatInput || !isProUser">
+      Ask
+    </button>
+
+    <div class="mt-4">
+      <h3 class="font-semibold">Conversation:</h3>
+      <template x-for="msg in conversation" :key="msg.id">
+        <div class="mb-2">
+          <p><strong x-text="msg.sender"></strong>: <span x-text="msg.text"></span></p>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<script>
+function chatFAQApp() {
+  return {
+    modalOpen: false,
+    modalTitle: '',
+    form: { id: null, company: '', category: '', question: '', answer: '', is_pro: false },
+    conversation: [],
+    chatInput: '',
+    isProUser: {{ user.is_authenticated }},
+    
+    openAddModal() {
+      this.modalTitle = 'Add New Question';
+      this.form = { id: null, company: '', category: '', question: '', answer: '', is_pro: false };
+      this.modalOpen = true;
+    },
+    openEditModal(id, company, category, question, answer, is_pro) {
+      this.modalTitle = 'Edit Question';
+      this.form = { id, company, category, question, answer, is_pro };
+      this.modalOpen = true;
+    },
+    closeModal() { this.modalOpen = false },
+
+    async saveQuestion() {
+      const url = this.form.id ? `/edit_question/${this.form.id}/` : `/add_question/`;
+      const formData = new FormData();
+      formData.append('company', this.form.company);
+      formData.append('category', this.form.category);
+      formData.append('question', this.form.question);
+      formData.append('answer', this.form.answer);
+      formData.append('is_pro', this.form.is_pro ? 'on' : '');
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      const res = await fetch(url, { method: 'POST', body: formData, headers: { 'X-CSRFToken': csrfToken } });
+      if (res.ok) location.reload();
+      else alert('Error saving question');
+    },
+
+    async askChatbot() {
+      if (!this.chatInput) return;
+      this.conversation.push({ id: Date.now(), sender: 'You', text: this.chatInput });
+
+      const response = await fetch('/chat-api/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: new URLSearchParams({ question: this.chatInput })
+      });
+
+      const data = await response.json();
+      let botReply = data.answer || 'Sorry, could not get a response.';
+      this.conversation.push({ id: Date.now(), sender: 'Bot', text: botReply });
+      this.chatInput = '';
+    }
+  }
+}
+</script>
+
+</body>
+{% endblock %}

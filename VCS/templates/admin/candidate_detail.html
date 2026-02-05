@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+<div class="mt-6">
+    <a href="{% url 'admin_candidates' %}" 
+       class="text-blue-600 hover:underline">
+        ← Back to Candidates
+    </a>
+</div>
+
+<h1 class="text-3xl font-bold mb-6 text-blue-600">👤 Candidate Profile</h1>
+
+<!-- PROFILE CARD -->
+<div class="bg-white rounded-xl shadow p-6 mb-8 grid md:grid-cols-2 gap-6">
+
+    <div>
+        <h2 class="text-2xl font-semibold mb-1">
+            {{ profile.user.first_name }} {{ profile.user.last_name }}
+        </h2>
+        <p class="text-gray-500">@{{ profile.user.username }}</p>
+
+        <div class="mt-4 space-y-1">
+            <p><strong>Email:</strong> {{ profile.user.email }}</p>
+            <p><strong>Location:</strong> {{ profile.location }}</p>
+            <p><strong>Experience:</strong> {{ profile.experience }}</p>
+        </div>
+
+        <p class="mt-4 font-semibold">Skills:</p>
+        <div class="flex flex-wrap gap-2 mt-2">
+            {% for skill in skills_list %}
+                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">
+                    {{ skill }}
+                </span>
+            {% empty %}
+                <span class="text-gray-500">No skills added</span>
+            {% endfor %}
+        </div>
+
+        {% if profile.resume %}
+        <a href="{{ profile.resume.url }}" target="_blank"
+           class="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            📄 Download Resume
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="bg-gray-50 p-4 rounded-lg">
+        <h3 class="font-semibold text-lg mb-3">📊 Profile Summary</h3>
+        <p><strong>Total Applications:</strong> {{ applications.count }}</p>
+
+        <p class="mt-2"><strong>Status:</strong>
+            {% if profile.resume %}
+                <span class="text-green-600 font-semibold">Profile Complete</span>
+            {% else %}
+                <span class="text-red-600 font-semibold">Incomplete</span>
+            {% endif %}
+        </p>
+    </div>
+
+</div>
+
+<!-- APPLICATIONS -->
+<h2 class="text-2xl font-bold mb-4">📄 Applications</h2>
+
+<div class="overflow-x-auto bg-white rounded-xl shadow mb-8">
+<table class="min-w-full text-sm">
+<thead class="bg-gray-100">
+<tr>
+    <th class="p-3 text-left">Job</th>
+    <th>Status</th>
+    <th>Applied On</th>
+    <th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+{% for app in applications %}
+<tr class="border-t hover:bg-gray-50">
+
+    <td class="p-3">
+        <div class="font-semibold">{{ app.job.job_title }}</div>
+        <div class="text-gray-500 text-sm">{{ app.job.company_name }}</div>
+    </td>
+
+    <td>
+        <span class="px-3 py-1 rounded-full text-xs font-semibold
+        {% if app.status == 'HIRED' %}bg-green-100 text-green-700
+        {% elif app.status == 'REJECTED' %}bg-red-100 text-red-700
+        {% elif app.status == 'WAITING' %}bg-purple-100 text-purple-700
+        {% else %}bg-blue-100 text-blue-700{% endif %}">
+            {{ app.status }}
+        </span>
+    </td>
+
+    <td>{{ app.applied_at|date:"d M Y" }}</td>
+
+    <td>
+        <a href="{% url 'schedule_interview' app.id %}"
+           class="text-blue-600 hover:underline font-semibold">
+            Schedule Interview
+        </a>
+    </td>
+
+</tr>
+{% empty %}
+<tr>
+    <td colspan="4" class="p-4 text-center text-gray-500">
+        No applications found.
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<!-- INTERACTION HISTORY -->
+<h2 class="text-2xl font-bold mb-4">💬 Interaction History</h2>
+
+<div class="space-y-4">
+{% for interaction in interactions %}
+<div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-600">
+    <p>{{ interaction.message }}</p>
+    <span class="text-sm text-gray-500">
+        {{ interaction.created_at|date:"d M Y H:i" }} by {{ interaction.admin.username }}
+    </span>
+</div>
+{% empty %}
+<p class="text-gray-500">No interactions yet.</p>
+{% endfor %}
+</div>
+
+</div>
+
+{% endblock %}

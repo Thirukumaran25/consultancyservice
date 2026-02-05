@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">🔔 Notifications</h1>
+
+<div class="space-y-4">
+
+{% for note in notifications %}
+<div class="bg-white p-4 rounded shadow border-l-4
+    {% if note.is_read %}border-gray-400{% else %}border-blue-600{% endif %}">
+
+    <p>{{ note.message }}</p>
+    <p class="text-sm text-gray-500 mt-1">
+        {{ note.created_at|date:"d M Y H:i" }}
+    </p>
+
+    {% if not note.is_read %}
+    <a href="{% url 'mark_notification_read' note.id %}"
+       class="text-blue-600 text-sm hover:underline">
+        Mark as read
+    </a>
+    {% endif %}
+</div>
+{% empty %}
+<p>No notifications.</p>
+{% endfor %}
+
+</div>
+
+{% endblock %}

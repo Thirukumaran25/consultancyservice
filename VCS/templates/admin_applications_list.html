@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-6xl mx-auto p-6">
+
+<h1 class="text-3xl font-bold mb-6 text-blue-600">
+    📂 Applications - {{ status }}
+</h1>
+
+<div class="overflow-x-auto bg-white rounded-xl shadow">
+
+<table class="w-full">
+<thead class="bg-gray-100">
+<tr>
+    <th class="p-4 text-left">Candidate</th>
+    <th class="p-4 text-left">Job</th>
+    <th class="p-4 text-center">Status</th>
+    <th class="p-4 text-center">Applied On</th>
+    <th class="p-4 text-center">Action</th>
+</tr>
+</thead>
+
+<tbody>
+{% for app in applications %}
+    <tr class="border-t hover:bg-gray-50">
+        <td class="p-4 flex items-center gap-2"> 
+            <div class="text-sm text-gray-500">
+                {{ app.user.username }}
+            </div>
+            <div class=" font-semibold">
+                {{ app.user.first_name }} {{ app.user.last_name }}
+
+                {% if app.user.profile.is_pro %}
+                    <span class="px-2 py-0.5 text-xs font-bold text-white bg-yellow-500 rounded-full">
+                        PRO
+                    </span>
+                {% endif %}
+            </div>
+            
+        </td>
+
+
+    <!-- Job -->
+    <td class="p-4">
+        <div class="font-medium">{{ app.job.job_title }}</div>
+        <div class="text-sm text-gray-500">{{ app.job.company_name }}</div>
+    </td>
+
+    <!-- Status -->
+    <td class="p-4 text-center">
+        {{ app.status }}
+    </td>
+
+    <!-- Date -->
+    <td class="p-4 text-center">
+        {{ app.applied_at|date:"d M Y" }}
+    </td>
+
+    <!-- Action -->
+    <td class="p-4 text-center">
+        <a href="{% url 'admin_application_detail' app.id %}" class="text-blue-600">
+            View
+        </a>
+    </td>
+
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+
+<!-- Back Button -->
+<div class="mt-6">
+    <a href="{% url 'admin_analytics' %}" 
+       class="text-blue-600 hover:underline">
+        ← Back to Analytics
+    </a>
+</div>
+
+</div>
+
+{% endblock %}

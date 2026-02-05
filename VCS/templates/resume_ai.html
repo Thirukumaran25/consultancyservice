@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+<title>AI Resume Optimizer</title>
+
+{% block content %}
+
+
+
+<div class="max-w-5xl mx-auto p-8">
+    
+    <h1 class="text-3xl font-bold mb-6">🤖 AI Resume Optimizer</h1>
+    
+    <div class="bg-white shadow rounded-xl p-6">
+        
+        <form method="POST">
+            {% csrf_token %}
+            
+            <label class="block font-semibold mb-2">Paste your Resume Text:</label>
+            <textarea name="resume_text" rows="8"
+            class="w-full border rounded p-3 focus:ring focus:ring-indigo-300"
+            placeholder="Paste your resume content here..."></textarea>
+            
+            <button class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
+                Analyze Resume
+            </button>
+        </form>
+        
+        {% if score %}
+        <div class="mt-6">
+            <h2 class="text-xl font-semibold">Resume Score</h2>
+            
+            <div class="w-full bg-gray-200 rounded h-4 mt-2">
+                <div class="bg-green-500 h-4 rounded" style="width: {{ score }}%"></div>
+            </div>
+            
+            <p class="mt-2 text-green-700 font-bold">{{ score }}% Optimized</p>
+        </div>
+        {% endif %}
+        
+        {% if suggestions %}
+        <div class="mt-6">
+            <h2 class="text-xl font-semibold mb-2">AI Suggestions</h2>
+            <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                {% for s in suggestions %}
+                <li>{{ s }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+    </div>
+    
+</div>
+
+
+{% endblock %}
