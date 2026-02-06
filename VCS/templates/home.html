@@ -1,50 +1,119 @@
-{% extends 'base.html' %} {% block content %}
-<section
-  class="relative overflow-hidden min-h-screen items-center justify-center"
->
-  <div
-    class="absolute inset-0 bg-gradient-to-r from-blue-500 to-pink-500 animate-gradient"
-  ></div>
-  <div
-    class="absolute top-20 left-10 w-72 h-72 bg-white opacity-10 rounded-full animate-float"
-  ></div>
-  <div
-    class="absolute bottom-20 right-10 w-96 h-96 bg-white opacity-10 rounded-full animate-float-slow"
-  ></div>
+{% extends 'base.html' %}
+{% block content %}
 
-  <div class="relative z-10 text-center text-white py-32 px-4">
-    <h1 class="text-4xl md:text-6xl font-bold mb-6">
-      Build Your Career With Experts
-    </h1>
-    <p class="text-lg md:text-xl max-w-2xl mx-auto">
-      Free & paid consulting services to help you land your dream job
-    </p>
-  </div>
+<section class="relative min-h-screen overflow-hidden bg-slate-950">
 
-  <section class="relative grid md:grid-cols-2 gap-8 px-6 pb-12">
-    <div class="bg-green-50 p-6 rounded-lg">
-      <h2 class="text-2xl font-bold mb-3">Free Services</h2>
-      <p class="mb-2">1.Limited AI chatbot access</p>
-      <p class="mb-2">2.Daily one job matching alert</p>
-      <p class="mb-2"></p>
+    <!-- Background gradients -->
+    <div class="absolute inset-0 bg-gradient-to-br from-blue-600/30 via-purple-600/20 to-pink-600/30"></div>
+
+    <!-- Decorative blurred blobs -->
+    <div class="absolute top-24 left-10 w-72 h-72 bg-blue-500/30 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-20 right-10 w-96 h-96 bg-pink-500/30 rounded-full blur-3xl"></div>
+
+    <!-- Hero Content -->
+    <div class="relative z-10 max-w-7xl mx-auto px-6 pt-32 pb-20 text-center text-white">
+
+        <span class="inline-flex items-center gap-2 mb-4 px-4 py-1 rounded-full bg-white/10 backdrop-blur text-sm tracking-wide">
+            <i class='bx bx-bot text-blue-400'></i>
+            AI-Powered Career Platform
+        </span>
+
+        <h1 class="text-4xl md:text-6xl font-extrabold leading-tight mb-6">
+            Build Your Career <br class="hidden md:block">
+            <span class="bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent">
+                With Industry Experts
+            </span>
+        </h1>
+
+        <p class="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10">
+            Smart job matching, AI resume optimization, interview prep, and real consultant support —
+            everything you need to land your dream job faster.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+              <a href="/jobs/"
+                class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition backdrop-blur font-semibold">
+                  Explore Jobs
+              </a>
+            
+        </div>
     </div>
 
-    <div class="bg-blue-50 p-6 rounded-lg">
-      <h2 class="text-2xl font-bold mb-3">Paid Services</h2>
+    <!-- Services Section -->
+    <section class="relative z-10 max-w-7xl mx-auto px-6 pb-24 grid gap-8 md:grid-cols-2">
 
-      <p class="mb-2">1.AI resume optimization</p>
-      <p class="mb-2">
-        2.Company-specific interview question database via chatbot
-      </p>
-      <p class="mb-2">
-        3.WhatsApp real-time notifications for matches and consultant responses
-      </p>
-      <p class="mb-2">4.Advanced job matching with match percentage scores</p>
-      <p class="mb-2">5.Priority consultant access with guaranteed response</p>
-      <p class="mb-2">6.Access to VTS training courses and certificate</p>
-      <p class="mb-2"></p>
-    </div>
-  </section>
+        <!-- Free Services Card -->
+        <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-xl hover:scale-[1.02] transition">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                <i class='bx bx-gift text-green-400'></i>
+                Free Services
+            </h2>
+
+            <ul class="space-y-3 text-gray-200">
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check-circle text-green-400 mt-1'></i>
+                    Limited AI chatbot access
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check-circle text-green-400 mt-1'></i>
+                    Limited Daily job matching alerts
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check-circle text-green-400 mt-1'></i>
+                    Profile visibility to recruiters
+                </li>
+            </ul>
+        </div>
+
+        <!-- Paid Services Card -->
+        <div class="bg-gradient-to-br from-blue-600/20 to-pink-600/20 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-xl hover:scale-[1.02] transition">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                <i class='bx bx-star text-yellow-400'></i>
+                Pro Services
+            </h2>
+
+            <ul class="space-y-3 text-gray-100">
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-blue-400 mt-1'></i>
+                    AI resume optimization with score
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-blue-400 mt-1'></i>
+                    Company-specific interview Q&A via chatbot
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-blue-400 mt-1'></i>
+                    WhatsApp real-time job & consultant alerts
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-blue-400 mt-1'></i>
+                    Advanced job matching with percentage score
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-blue-400 mt-1'></i>
+                    Priority consultant support (guaranteed reply)
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-blue-400 mt-1'></i>
+                    Access to VTS courses & certifications
+                </li>
+            </ul>
+
+            <div class="mt-6">
+              {% if user.is_superuser %}
+                <p></p>
+                {% else %}
+                <a href="/upgrade/"
+                   class="inline-block w-full text-center px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition font-semibold shadow-lg">
+                    Upgrade to Pro
+                </a>
+                {%endif%}
+            </div>
+        </div>
+
+    </section>
+
 </section>
 
 {% endblock %}

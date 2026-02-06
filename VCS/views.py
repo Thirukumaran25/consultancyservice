@@ -46,12 +46,15 @@ def chatbot_api(request):
     if request.method != 'POST':
         return JsonResponse({'reply': "Invalid request."})
 
-    data = json.loads(request.body)
-    user_question = data.get('message', '').strip()
+    try:
+        data = json.loads(request.body)
+        user_question = data.get("message", "").strip()
+    except Exception:
+        return JsonResponse({"reply": "Invalid JSON data"}, status=400)
 
     if not user_question:
         return JsonResponse({'reply': "Please enter a question."})
-
+    
     profile, _ = Profile.objects.get_or_create(user=request.user)
     user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
 
@@ -60,25 +63,69 @@ def chatbot_api(request):
             'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro.",
             'upgrade_required': True
         })
-    try:
-        faq = ChatQuestionAnswer.objects.get(question__iexact=user_question)
-        answer = faq.answer
-        source = "db"
-    except ChatQuestionAnswer.DoesNotExist:
-        answer = ask_gemini(user_question)
-        source = "gemini"
+    
+    job_keywords = ["job", "jobs", "vacancy", "opening", "developer", "engineer"]
+    if any(word in user_question for word in job_keywords):
+        clean_words = [w for w in user_question.split() if w not in job_keywords]
 
-    CandidateChat.objects.create(
-        candidate=request.user,
-        question=user_question,
-        answer=answer
-    )
+        query = Q()
+        for word in clean_words:
+            query |= Q(job_title__icontains=word) | Q(job_description__icontains=word)
 
-    return JsonResponse({
-        'reply': answer,
-        'source': source
-    })
+        jobs = Job.objects.filter(query).distinct()[:5]
 
+        if jobs.exists():
+            job_list = []
+            for job in jobs:
+                job_list.append({
+                    "id": job.id,
+                    "title": job.job_title,
+                    "company": job.company_name
+                })
+
+            answer = {
+                "type": "job_list",
+                "jobs": job_list
+            }
+            source = "db"
+        else:
+            answer = {
+                "type": "text",
+                "message": "❌ No jobs available for your query right now."
+            }
+            source = "db"
+        
+        # Save the interaction to the database (serialize answer to JSON for consistency)
+        CandidateChat.objects.create(
+            candidate=request.user,
+            question=user_question,
+            answer=json.dumps(answer)  # Serialize dict to string for storage
+        )
+        
+        # Return the response
+        return JsonResponse({
+            'reply': answer,  # Send the dict as-is (JSON-serializable)
+            'source': source
+        })
+    else:
+        try:
+            faq = ChatQuestionAnswer.objects.get(question__iexact=user_question)
+            answer = faq.answer
+            source = "db"
+        except ChatQuestionAnswer.DoesNotExist:
+            answer = ask_gemini(user_question)
+            source = "gemini"
+
+        CandidateChat.objects.create(
+            candidate=request.user,
+            question=user_question,
+            answer=json.dumps(answer) 
+        )
+
+        return JsonResponse({
+            'reply': answer,
+            'source': source
+        })
 
 
 @login_required
@@ -197,9 +244,11 @@ def chatfaq_save(request):
 
 @staff_member_required
 def chatfaq_delete(request, id):
-    faq = get_object_or_404(ChatQuestionAnswer, id=id)
-    faq.delete()
-    return JsonResponse({'success': True})
+    if request.method == 'POST':
+        faq = get_object_or_404(ChatQuestionAnswer, id=id)
+        faq.delete()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
 
 
 def home(request):
@@ -446,34 +495,48 @@ def ai_resume_optimizer(request):
     score = None
     matched_keywords = []
     missing_keywords = []
+    job_title = ""
 
     if request.method == "POST":
-        resume_text = request.POST.get("resume_text", "").lower().strip()
+        resume_text = request.POST.get("resume_text", "").strip()
+        job_title = request.POST.get("job_title", "").strip()
 
-        if resume_text: 
-            keywords = ["python", "django", "sql", "project", "experience", "skills"]
+        if resume_text and job_title:
+            keyword_prompt = f"Extract a list of 5-10 key skills, technologies, and keywords relevant to the job title '{job_title}'. Provide them as a comma-separated list."
+            keyword_response = ask_gemini(keyword_prompt)
+            
+            if keyword_response and keyword_response != "⚠️ AI service is temporarily unavailable.":
+                keywords = [kw.strip().lower() for kw in keyword_response.split(',') if kw.strip()]
+            else:
+                keywords = ["python", "django", "sql", "project", "experience", "skills"]
 
-            matched_keywords = [k for k in keywords if k in resume_text]
-            missing_keywords = [k for k in keywords if k not in resume_text]
+            resume_lower = resume_text.lower()
+            matched_keywords = [k for k in keywords if k in resume_lower]
+            missing_keywords = [k for k in keywords if k not in resume_lower]
 
-            score = int((len(matched_keywords) / len(keywords)) * 100)
+            score = int((len(matched_keywords) / len(keywords)) * 100) if keywords else 0
 
-            suggestions = [
-                "Add more measurable achievements (numbers, %)." if "experience" in missing_keywords else "",
-                "Include relevant job keywords in your resume." if missing_keywords else "",
-                "Mention projects with tools and technologies used." if "project" in missing_keywords else "",
-                "Improve formatting for readability.",
-                "Highlight certifications and training courses."
-            ]
-  
-            suggestions = [s for s in suggestions if s]
+            suggestion_prompt = f"Analyze the following resume text for the job '{job_title}' and provide up to 10 concise suggestions for improvement: {resume_text}"
+            ai_response = ask_gemini(suggestion_prompt)
+
+            if ai_response and ai_response != "⚠️ AI service is temporarily unavailable.":
+                suggestions = [line.strip() for line in ai_response.split('\n') if line.strip()]
+            else:
+                suggestions = [
+                    "Add more measurable achievements relevant to the job.",
+                    "Include relevant job keywords in your resume.",
+                    "Mention projects with tools and technologies used.",
+                    "Improve formatting for readability.",
+                    "Highlight certifications and training courses."
+                ]
 
     return render(request, "resume_ai.html", {
         "profile": profile,
         "suggestions": suggestions,
         "score": score,
         "matched_keywords": matched_keywords,
-        "missing_keywords": missing_keywords
+        "missing_keywords": missing_keywords,
+        "job_title": job_title
     })
 
 

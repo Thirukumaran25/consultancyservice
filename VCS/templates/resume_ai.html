@@ -1,55 +1,132 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="max-w-3xl mx-auto p-6 bg-white shadow rounded-lg">
-    <h2 class="text-2xl font-bold mb-4">AI Resume Optimizer</h2>
 
-    <!-- Resume Score -->
-    <div class="mb-4">
-        <p class="font-semibold">Resume Match Score: <span class="text-blue-600">{{ score }}%</span></p>
-        <div class="w-full bg-gray-200 rounded-full h-4">
-            <div class="bg-blue-600 h-4 rounded-full" style="width: {{ score }}%;"></div>
+<div class="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 py-10 px-4">
+    <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl shadow-2xl rounded-2xl p-6 md:p-10">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-extrabold tracking-tight text-gray-900">
+                AI Resume Optimizer
+            </h2>
+            <p class="text-gray-500 mt-1">
+                Instantly analyze how well your resume matches the job.
+            </p>
         </div>
-    </div>
 
-    <!-- Matched & Missing Keywords -->
-    <div class="mb-4">
-        {% if matched_keywords %}
-            <p class="font-semibold text-green-700">Matched Keywords:</p>
-            <ul class="list-disc list-inside mb-2">
-                {% for kw in matched_keywords %}
-                    <li>{{ kw|title }}</li>
-                {% endfor %}
-            </ul>
+        <!-- Score Card -->
+        {% if score is not None %}
+        <div class="mb-8 p-5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+            <div class="flex items-center justify-between mb-2">
+                <p class="font-semibold text-gray-700">Resume Match Score for {{ job_title|default:"the Job" }}</p>
+                <span class="text-2xl font-bold text-blue-600">
+                    {{ score }}%
+                </span>
+            </div>
+
+            <div class="w-full h-4 bg-white rounded-full overflow-hidden shadow-inner">
+                <div
+                    class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-700 ease-out"
+                    style="width: {{ score }}%;">
+                </div>
+            </div>
+        </div>
         {% endif %}
 
-        {% if missing_keywords %}
-            <p class="font-semibold text-red-600">Missing Keywords:</p>
-            <ul class="list-disc list-inside mb-2">
-                {% for kw in missing_keywords %}
-                    <li>{{ kw|title }}</li>
-                {% endfor %}
-            </ul>
+        <!-- Keywords Section -->
+        {% if matched_keywords or missing_keywords %}
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+
+            {% if matched_keywords %}
+            <div class="p-5 rounded-xl border border-green-200 bg-green-50">
+                <p class="font-semibold text-green-800 mb-3">
+                    ✅ Matched Keywords
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    {% for kw in matched_keywords %}
+                        <span class="px-3 py-1 text-sm rounded-full bg-green-100 text-green-800">
+                            {{ kw|title }}
+                        </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if missing_keywords %}
+            <div class="p-5 rounded-xl border border-red-200 bg-red-50">
+                <p class="font-semibold text-red-700 mb-3">
+                    ⚠️ Missing Keywords
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    {% for kw in missing_keywords %}
+                        <span class="px-3 py-1 text-sm rounded-full bg-red-100 text-red-700">
+                            {{ kw|title }}
+                        </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
         {% endif %}
-    </div>
 
-    <!-- Resume Input Form -->
-    <form method="POST" class="mb-6">
-        {% csrf_token %}
-        <label class="block mb-2 font-semibold" for="resume_text">Paste your resume text:</label>
-        <textarea name="resume_text" id="resume_text" rows="8" class="w-full p-2 border rounded" placeholder="Paste your resume here...">{{ request.POST.resume_text }}</textarea>
-        <button type="submit" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Analyze Resume</button>
-    </form>
+        <!-- Resume Input -->
+        <form method="POST" class="mb-10">
+            {% csrf_token %}
+            
+            <!-- Job Title Input -->
+            <label for="job_title" class="block mb-2 font-semibold text-gray-700">
+                Job Title or Description
+            </label>
+            <input
+                type="text"
+                name="job_title"
+                id="job_title"
+                class="w-full p-4 mb-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                placeholder="e.g., Software Engineer, Data Analyst"
+                value="{{ request.POST.job_title }}"
+                required>
 
-    <!-- Suggestions -->
-    {% if suggestions %}
-        <div class="mt-4">
-            <h3 class="text-lg font-semibold mb-2">Suggestions to Improve Your Resume:</h3>
-            <ul class="list-disc list-inside space-y-1">
+            <!-- Resume Text -->
+            <label for="resume_text" class="block mb-2 font-semibold text-gray-700">
+                Paste your resume
+            </label>
+            <textarea
+                name="resume_text"
+                id="resume_text"
+                rows="8"
+                class="w-full p-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                placeholder="Paste your resume here..."
+                required>{{ request.POST.resume_text }}</textarea>
+
+            <button
+                type="submit"
+                class="mt-4 w-full md:w-auto px-6 py-3 rounded-xl font-semibold text-white
+                       bg-gradient-to-r from-blue-600 to-indigo-600
+                       hover:from-blue-700 hover:to-indigo-700
+                       active:scale-95 transition transform shadow-lg">
+                Analyze Resume
+            </button>
+        </form>
+
+        <!-- Suggestions -->
+        {% if suggestions %}
+        <div class="p-6 rounded-xl bg-slate-50 border border-slate-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">
+                💡 Suggestions to Improve for {{ job_title|default:"the Job" }}
+            </h3>
+            <ul class="space-y-2">
                 {% for suggestion in suggestions %}
-                    <li>{{ suggestion }}</li>
+                    <li class="flex gap-2 text-gray-700">
+                        <span class="text-blue-500">•</span>
+                        <span>{{ suggestion }}</span>
+                    </li>
                 {% endfor %}
             </ul>
         </div>
-    {% endif %}
+        {% endif %}
+
+    </div>
 </div>
+
 {% endblock %}

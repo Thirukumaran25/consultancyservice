@@ -134,14 +134,34 @@ document.getElementById("faqForm").addEventListener("submit", function(e){
     });
 });
 
-function deleteFAQ(id){
-    if(confirm("Delete this question?")){
-        fetch(`/admin/chatfaq/delete/${id}/`)
-        .then(res => res.json())
-        .then(data => {
-            if(data.success){
-                location.reload();
+
+function deleteFAQ(id) {
+    if (confirm("Delete this question?")) {
+
+        const url = "{% url 'chatfaq_delete' 0 %}".replace('0', id);  
+        fetch(url, {
+            method: "POST",  
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
             }
+        })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert("Error deleting FAQ: " + (data.error || "Unknown error"));
+            }
+        })
+        .catch(error => {
+            console.error("Delete failed:", error);
+            alert("Failed to delete FAQ. Check console for details.");
         });
     }
 }
