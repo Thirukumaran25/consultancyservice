@@ -64,5 +64,4 @@ urlpatterns = [
     path('dashboard/applications/<int:application_id>/', admin_application_detail, name='admin_application_detail'),
     path('dashboard/applications/status/<str:status>/', admin_applications_by_status, name='admin_applications_by_status'),
     
-
 ]
