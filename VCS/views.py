@@ -18,6 +18,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 from django.utils.decorators import method_decorator
 from django.contrib import messages
+from .gemini import ask_gemini
+
 
 
 
@@ -41,48 +43,41 @@ FREE_CHAT_LIMIT = 10
 @csrf_exempt
 @login_required
 def chatbot_api(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        user_question = data.get('message', '').strip()
+    if request.method != 'POST':
+        return JsonResponse({'reply': "Invalid request."})
 
-        if not user_question:
-            return JsonResponse({'reply': "Please enter a question."})
+    data = json.loads(request.body)
+    user_question = data.get('message', '').strip()
 
-        profile, created = Profile.objects.get_or_create(user=request.user)
-        user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
+    if not user_question:
+        return JsonResponse({'reply': "Please enter a question."})
 
-        if not profile.is_pro and user_chat_count >= 10:
-            return JsonResponse({
-                'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro to continue.",
-                'upgrade_required': True
-            })
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
 
-        try:
-            answer_obj = ChatQuestionAnswer.objects.get(question__iexact=user_question)
-            answer = answer_obj.answer
-        except ChatQuestionAnswer.DoesNotExist:
-            keywords = user_question.split()
-            query = Q()
-            for kw in keywords:
-                query |= Q(question__icontains=kw)
+    if not profile.is_pro and user_chat_count >= FREE_CHAT_LIMIT:
+        return JsonResponse({
+            'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro.",
+            'upgrade_required': True
+        })
+    try:
+        faq = ChatQuestionAnswer.objects.get(question__iexact=user_question)
+        answer = faq.answer
+        source = "db"
+    except ChatQuestionAnswer.DoesNotExist:
+        answer = ask_gemini(user_question)
+        source = "gemini"
 
-            similar_qs = ChatQuestionAnswer.objects.filter(query)[:3]
+    CandidateChat.objects.create(
+        candidate=request.user,
+        question=user_question,
+        answer=answer
+    )
 
-            if similar_qs.exists():
-                answer = "I found answers to similar questions:\n\n"
-                for q in similar_qs:
-                    ans_text = highlight_keywords(q.answer, keywords)
-                    answer += f"Q: {q.question} (Category: {q.category})\nA: {ans_text}\n\n"
-            else:
-                answer = "Sorry, I don't have an answer for that."
-
-        CandidateChat.objects.create(
-            candidate=request.user,
-            question=user_question,
-            answer=answer
-        )
-        return JsonResponse({'reply': answer})
-    return JsonResponse({'reply': "Invalid request."})
+    return JsonResponse({
+        'reply': answer,
+        'source': source
+    })
 
 
 
