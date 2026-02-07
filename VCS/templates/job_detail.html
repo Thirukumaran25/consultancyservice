@@ -11,6 +11,39 @@
         <i class='bx bx-left-arrow-alt'></i> Back to list
     </a>
 
+    <!-- 🔔 Application Usage + Warnings (ADDED) -->
+    {% if user.is_authenticated and not user.is_superuser %}
+        <div class="mb-4">
+            {% if applications_limit %}
+                <p class="text-sm text-gray-700 font-semibold">
+                    {{ applications_used }} / {{ applications_limit }} applications used this month
+                </p>
+
+                {% if show_warning and not limit_reached %}
+                    <div class="mt-2 flex items-center gap-2 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg">
+                        <i class='bx bx-error'></i>
+                        <span>You’re close to your monthly application limit.</span>
+                    </div>
+                {% endif %}
+
+                {% if limit_reached %}
+                    <div class="mt-2 flex items-center gap-2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg">
+                        <i class='bx bx-error-circle'></i>
+                        <span>You’ve reached your monthly application limit.</span>
+                        <a href="{% url 'upgrade_plan' %}"
+                           class="ml-auto bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm font-semibold transition">
+                            Upgrade
+                        </a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <p class="text-sm text-green-700 font-semibold">
+                    Unlimited applications 🎉
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
+
     <!-- Job Card -->
     <div class="bg-gray-100 rounded-2xl shadow-lg p-6 sm:p-8">
         <h1 class="text-3xl sm:text-4xl font-bold text-blue-800 mb-2">{{ job.job_title }}</h1>
@@ -65,10 +98,18 @@
                     </button>
                 {% else %}
                     {% if not user.is_superuser %}
-                    <a href="{% url 'apply_job' job.pk %}"
-                       class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition w-full sm:w-auto justify-center">
-                        <i class='bx bx-paper-plane'></i> Apply Now
-                    </a>
+                        {% if limit_reached %}
+                            <button
+                                class="flex items-center gap-2 px-6 py-3 bg-gray-400 text-white rounded-lg font-semibold w-full sm:w-auto justify-center cursor-not-allowed"
+                                disabled>
+                                <i class='bx bx-lock'></i> Limit Reached
+                            </button>
+                        {% else %}
+                            <a href="{% url 'apply_job' job.pk %}"
+                               class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition w-full sm:w-auto justify-center">
+                                <i class='bx bx-paper-plane'></i> Apply Now
+                            </a>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
             {% else %}

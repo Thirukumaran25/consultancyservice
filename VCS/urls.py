@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
-                    profile, saved_jobs, applied_jobs,upgrade_pro,subscription_dashboard,
+                    profile, saved_jobs, applied_jobs,upgrade_plan,subscription_dashboard,
                     job_matching,ai_resume_optimizer,user_login,
                     courses,admin_job_applications,application_tracker,
                     admin_dashboard,admin_candidates,admin_candidate_detail,
@@ -9,7 +9,7 @@ from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
                     admin_application_detail,admin_applications_by_status,
                     send_support_query,candidate_chat,send_message,clear_chat,
                     chatbot_api,chat_history,chatfaq_delete,chatfaq_list,chatfaq_save,
-                    mark_query_resolved,reply_query)
+                    mark_query_resolved,reply_query,payment_success,)
 
 urlpatterns = [
     path('', home, name='home'),
@@ -26,7 +26,7 @@ urlpatterns = [
     path('profile/', profile, name='profile'),
     path('saved-jobs/', saved_jobs, name='saved_jobs'),
     path('applied-jobs/', applied_jobs, name='applied_jobs'),
-    path('upgrade/', upgrade_pro, name='upgrade_pro'),
+    path('upgrade/', upgrade_plan, name='upgrade_plan'),
     path('subscription/', subscription_dashboard, name='subscription'),
     path('job-matching/', job_matching, name='job_matching'),
     path('resume-ai/', ai_resume_optimizer, name='resume_ai'),
@@ -45,6 +45,9 @@ urlpatterns = [
     path('dashboard/chatfaq/', chatfaq_list, name='chatfaq'),
     path('dashboard/chatfaq/save/', chatfaq_save, name='chatfaq_save'),
     path('dashboard/chatfaq/delete/<int:id>/', chatfaq_delete, name='chatfaq_delete'),
+
+    # path("create-order/", create_razorpay_order, name="create_razorpay_order"),
+    path("payment-success/", payment_success, name="payment_success"),
 
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
     path('dashboard/candidates/', admin_candidates, name='admin_candidates'),

@@ -32,16 +32,15 @@
 
         <!-- CTA Buttons -->
         <div class="flex flex-col sm:flex-row justify-center gap-4">
-              <a href="/jobs/"
-                class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition backdrop-blur font-semibold">
-                  Explore Jobs
-              </a>
-            
+            <a href="/jobs/"
+               class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition backdrop-blur font-semibold">
+                Explore Jobs
+            </a>
         </div>
     </div>
 
     <!-- Services Section -->
-    <section class="relative z-10 max-w-7xl mx-auto px-6 pb-24 grid gap-8 md:grid-cols-2">
+    <section class="relative z-10 max-w-7xl mx-auto px-6 pb-24 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
 
         <!-- Free Services Card -->
         <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-xl hover:scale-[1.02] transition">
@@ -53,20 +52,24 @@
             <ul class="space-y-3 text-gray-200">
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check-circle text-green-400 mt-1'></i>
-                    Limited AI chatbot access
+                    Job search (20 / month)
                 </li>
                 <li class="flex items-start gap-2">
-                    <i class='bx bx-check-circle text-green-400 mt-1'></i>
-                    Limited Daily job matching alerts
+                    <i class='bx bx-x-circle text-red-400 mt-1'></i>
+                    AI chatbot not included
                 </li>
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check-circle text-green-400 mt-1'></i>
                     Profile visibility to recruiters
                 </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check-circle text-green-400 mt-1'></i>
+                    Email notifications
+                </li>
             </ul>
         </div>
 
-        <!-- Paid Services Card -->
+        <!-- Pro Services Card -->
         <div class="bg-gradient-to-br from-blue-600/20 to-pink-600/20 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-xl hover:scale-[1.02] transition">
             <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
                 <i class='bx bx-star text-yellow-400'></i>
@@ -76,39 +79,91 @@
             <ul class="space-y-3 text-gray-100">
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check text-blue-400 mt-1'></i>
-                    AI resume optimization with score
+                    Job search (100 / month)
                 </li>
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check text-blue-400 mt-1'></i>
-                    Company-specific interview Q&A via chatbot
+                    AI chatbot (250 / month)
                 </li>
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check text-blue-400 mt-1'></i>
-                    WhatsApp real-time job & consultant alerts
+                    Resume optimization (3 AI runs / month)
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-x text-red-400 mt-1'></i>
+                    Mock interviews not included
                 </li>
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check text-blue-400 mt-1'></i>
-                    Advanced job matching with percentage score
+                    Consultant: 1 session / month (30 mins, 4-hr SLA)
                 </li>
                 <li class="flex items-start gap-2">
                     <i class='bx bx-check text-blue-400 mt-1'></i>
-                    Priority consultant support (guaranteed reply)
+                    Email notifications
                 </li>
                 <li class="flex items-start gap-2">
-                    <i class='bx bx-check text-blue-400 mt-1'></i>
-                    Access to VTS courses & certifications
+                    <i class='bx bx-x text-red-400 mt-1'></i>
+                    VTS training not included
                 </li>
             </ul>
 
             <div class="mt-6">
-              {% if user.is_superuser %}
-                <p></p>
-                {% else %}
+                {% if not user.is_superuser %}
                 <a href="/upgrade/"
                    class="inline-block w-full text-center px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition font-semibold shadow-lg">
                     Upgrade to Pro
                 </a>
-                {%endif%}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pro Plus Services Card -->
+        <div class="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-xl hover:scale-[1.02] transition">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                <i class='bx bx-crown text-pink-400'></i>
+                Pro Plus Services
+            </h2>
+
+            <ul class="space-y-3 text-gray-100">
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Unlimited job search
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Unlimited AI chatbot + priority escalation
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Resume optimization (20 AI runs / month + consultant review)
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    4 mock interviews per month
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Consultant: 4 sessions / month (30 mins, 2-hr SLA)
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Email & WhatsApp notifications
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Any 1 VTS course with certificate
+                </li>
+                <li class="flex items-start gap-2">
+                    <i class='bx bx-check text-pink-400 mt-1'></i>
+                    Annual placement readiness & outcome review
+                </li>
+            </ul>
+
+            <div class="mt-6">
+                <a href="/upgrade/pro-plus/"
+                   class="inline-block w-full text-center px-6 py-3 rounded-xl bg-pink-600 hover:bg-pink-700 transition font-semibold shadow-lg">
+                    Upgrade to Pro Plus
+                </a>
             </div>
         </div>
 

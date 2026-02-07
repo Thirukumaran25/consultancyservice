@@ -1,7 +1,7 @@
 from django.shortcuts import render,redirect,get_object_or_404
 from django.contrib.auth import authenticate, login
 from .forms import SignupForm,ProfileForm,JobApplicationForm,JobForm
-from .models import ChatQuestionAnswer, CandidateChat,Job,Profile,Subscription,Course,JobApplication,Appointment,Interaction,SupportQuery,Notification
+from .models import ChatQuestionAnswer,Invoice, CandidateChat,Job,Profile,Subscription,Course,JobApplication,Appointment,Interaction,SupportQuery,Notification
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -15,10 +15,13 @@ from django.views.decorators.http import require_POST
 import re
 import json
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.models import User
-from django.utils.decorators import method_decorator
 from django.contrib import messages
 from .gemini import ask_gemini
+from django.utils import timezone
+from django.utils.timezone import now
+import razorpay
+from django.conf import settings
+import uuid
 
 
 
@@ -45,7 +48,6 @@ FREE_CHAT_LIMIT = 10
 def chatbot_api(request):
     if request.method != 'POST':
         return JsonResponse({'reply': "Invalid request."})
-
     try:
         data = json.loads(request.body)
         user_question = data.get("message", "").strip()
@@ -95,16 +97,14 @@ def chatbot_api(request):
             }
             source = "db"
         
-        # Save the interaction to the database (serialize answer to JSON for consistency)
         CandidateChat.objects.create(
             candidate=request.user,
             question=user_question,
-            answer=json.dumps(answer)  # Serialize dict to string for storage
+            answer=json.dumps(answer)
         )
         
-        # Return the response
         return JsonResponse({
-            'reply': answer,  # Send the dict as-is (JSON-serializable)
+            'reply': answer,
             'source': source
         })
     else:
@@ -126,6 +126,7 @@ def chatbot_api(request):
             'reply': answer,
             'source': source
         })
+
 
 
 @login_required
@@ -278,13 +279,15 @@ def user_login(request):
 def signup(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
-
         if form.is_valid():
             user = form.save(commit=False)
             user.set_password(form.cleaned_data['password'])
             user.save()
-            login(request, user)
-            return redirect('/')
+
+            user = authenticate(username=user.username, password=form.cleaned_data['password'])
+            if user is not None:
+                login(request, user) 
+                return redirect('/')
     else:
         form = SignupForm()
     return render(request, 'signup.html', {'form': form})
@@ -364,15 +367,33 @@ def search(request):
 def job_detail(request, pk):
     job = get_object_or_404(Job, pk=pk)
     has_applied = False
+
+    applications_used = 0
+    applications_limit = None
+    limit_reached = False
+    show_warning = False
+
     if request.user.is_authenticated:
         has_applied = JobApplication.objects.filter(
             job=job,
             user=request.user
         ).exists()
 
+        profile = Profile.objects.get(user=request.user)
+        applications_used = profile.applications_this_month()
+        applications_limit = profile.application_limit()
+
+        if applications_limit is not None:
+            limit_reached = applications_used >= applications_limit
+            show_warning = applications_used >= (applications_limit - 2)
+
     return render(request, 'job_detail.html', {
         'job': job,
-        'has_applied': has_applied
+        'has_applied': has_applied,
+        'applications_used': applications_used,
+        'applications_limit': applications_limit,
+        'limit_reached': limit_reached,
+        'show_warning': show_warning,
     })
 
 @login_required
@@ -386,10 +407,19 @@ def save_job(request, pk):
     return redirect('job_detail', pk=pk)
 
 
+
 @login_required
 def apply_job(request, pk):
     job = get_object_or_404(Job, pk=pk)
-    profile = Profile.objects.get(user=request.user)
+    profile = get_object_or_404(Profile, user=request.user)
+
+    if not profile.can_apply():
+        messages.error(
+            request,
+            "You’ve reached your monthly application limit. Upgrade to apply for more jobs."
+        )
+        return redirect('upgrade_plan') 
+
     application, created = JobApplication.objects.get_or_create(
         user=request.user,
         job=job,
@@ -404,11 +434,16 @@ def apply_job(request, pk):
                 profile.save()
                 application.resume = profile.resume
                 application.save()
+
+            messages.success(request, "Job application submitted successfully!")
             return redirect('applied_jobs')
     else:
         form = JobApplicationForm()
 
-    return render(request, 'apply_job.html', {'job': job, 'form': form, 'application': application})
+    return render(request, 'apply_job.html', {
+        'job': job,
+        'form': form,
+    })
 
 
 
@@ -426,26 +461,93 @@ def profile(request):
     return render(request, 'profile.html', {'form': form, 'profile': profile})
 
 
+
 @login_required
-def upgrade_pro(request):
+def upgrade_plan(request):
     profile = Profile.objects.get(user=request.user)
+    invoice_url = None
 
     if request.method == "POST":
-        profile.is_pro = True
+        plan = request.POST.get("plan")
+
+        if plan == "pro_monthly":
+            profile.is_pro = True
+            profile.is_proplus = False
+            plan_name = "Pro"
+            billing_cycle = "monthly"
+            duration_days = 30
+
+        elif plan == "pro_yearly":
+            profile.is_pro = True
+            profile.is_proplus = False
+            plan_name = "Pro"
+            billing_cycle = "yearly"
+            duration_days = 365
+
+        elif plan == "pro_plus":
+            profile.is_pro = True
+            profile.is_proplus = True
+            plan_name = "Pro Plus"
+            billing_cycle = "yearly"
+            duration_days = 365
+
+        else:
+            return redirect("upgrade_plan")
+
         profile.save()
-        subscription, created = Subscription.objects.get_or_create(
+
+        # Update or create subscription
+        subscription, created = Subscription.objects.update_or_create(
             user=request.user,
             defaults={
-                "plan_name": "Pro",
+                "plan_name": plan_name,
+                "billing_cycle": billing_cycle,
                 "start_date": date.today(),
-                "end_date": date.today() + timedelta(days=30),
+                "end_date": date.today() + timedelta(days=duration_days),
                 "active": True
             }
         )
 
-        return redirect("profile")
+        # Create new invoice (mark as paid after upgrade)
+        invoice=Invoice.objects.create(
+            user=request.user,
+            subscription=subscription,
+            amount=subscription.price_amount,
+            paid=True
+        )
 
-    return render(request, "upgrade.html")
+        generate_invoice_pdf(invoice)
+        invoice_url = invoice.file.url
+
+        return redirect("subscription")
+
+    return render(request, "upgrade.html",{
+            "invoice_url": invoice_url
+        })
+
+
+
+@login_required
+def subscription_dashboard(request):
+    default_plan = "Pro"
+
+    subscription, created = Subscription.objects.get_or_create(
+        user=request.user,
+        defaults={
+            "plan_name": default_plan,
+            "billing_cycle": "yearly",
+            "end_date": date.today() + timedelta(days=365),
+            "active": True
+        }
+    )
+
+    invoices = Invoice.objects.filter(user=request.user).order_by('-date')
+
+    return render(request, "subscription.html", {
+        "subscription": subscription,
+        "invoices": invoices
+    })
+
 
 
 @login_required
@@ -541,19 +643,6 @@ def ai_resume_optimizer(request):
 
 
 
-@login_required
-def subscription_dashboard(request):
-    subscription, created = Subscription.objects.get_or_create(
-        user=request.user,
-        defaults={
-            "plan_name": "Pro",
-            "start_date": date.today(),
-            "end_date": date.today() + timedelta(days=30),
-            "active": True
-        }
-    )
-
-    return render(request, "subscription.html", {"subscription": subscription})
 
 
 @login_required
@@ -695,9 +784,6 @@ def schedule_interview(request, application_id):
 
 
 
-from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Q
-from django.shortcuts import render
 
 @staff_member_required
 def admin_queries(request):
@@ -708,24 +794,20 @@ def admin_queries(request):
     search_query = request.GET.get('search', '').strip()
     sort = request.GET.get('sort', 'NEWEST')
 
-    # Status filter
     if status_filter == 'OPEN':
         queries = queries.filter(resolved=False)
     elif status_filter == 'RESOLVED':
         queries = queries.filter(resolved=True)
 
-    # Priority filter
     if priority_filter != 'ALL':
         queries = queries.filter(priority=priority_filter)
 
-    # Search filter
     if search_query:
         queries = queries.filter(
             Q(user__username__icontains=search_query) |
             Q(subject__icontains=search_query)
         )
 
-    # Sorting
     if sort == 'OLDEST':
         queries = queries.order_by('created_at')
     else:
@@ -914,3 +996,106 @@ def mark_query_resolved(request, query_id):
     query.resolved = True
     query.save()
     return redirect('admin_queries')
+
+
+
+
+
+
+import razorpay
+from io import BytesIO
+from django.core.files.base import ContentFile
+from reportlab.pdfgen import canvas
+from decimal import Decimal
+
+
+
+
+# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+
+# @login_required
+# def create_razorpay_order(request):
+#     data = json.loads(request.body)
+#     plan = data["plan"]            # Pro / Pro Plus
+#     cycle = data["cycle"]          # monthly / yearly
+
+#     subscription = Subscription.objects.get(user=request.user)
+#     subscription.plan_name = plan
+#     subscription.billing_cycle = cycle
+
+#     amount = int(subscription.price_amount * 100)  # paise
+
+#     order = client.order.create({
+#         "amount": amount,
+#         "currency": "INR",
+#         "payment_capture": 1
+#     })
+
+#     request.session["plan"] = plan
+#     request.session["cycle"] = cycle
+#     request.session["amount"] = str(subscription.price_amount)
+
+#     return JsonResponse({
+#         "order_id": order["id"],
+#         "amount": amount
+#     })
+
+
+# ---------- PAYMENT SUCCESS ----------
+@csrf_exempt
+@login_required
+def payment_success(request):
+    data = json.loads(request.body)
+
+    plan = request.session.get("plan")
+    cycle = request.session.get("cycle")
+    amount = Decimal(request.session.get("amount"))
+
+    duration = 30 if cycle == "monthly" else 365
+
+    subscription, _ = Subscription.objects.update_or_create(
+        user=request.user,
+        defaults={
+            "plan_name": plan,
+            "billing_cycle": cycle,
+            "start_date": date.today(),
+            "end_date": date.today() + timedelta(days=duration),
+            "active": True
+        }
+    )
+
+    invoice = Invoice.objects.create(
+        user=request.user,
+        subscription=subscription,
+        amount=amount,
+        paid=True
+    )
+
+    generate_invoice_pdf(invoice)
+
+    return JsonResponse({"status": "success"})
+
+
+# ---------- PDF GENERATOR ----------
+def generate_invoice_pdf(invoice):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer)
+
+    p.drawString(100, 800, "SUBSCRIPTION INVOICE")
+    p.drawString(100, 770, f"Invoice No: {invoice.invoice_number}")
+    p.drawString(100, 740, f"User: {invoice.user.username}")
+    p.drawString(100, 710, f"Plan: {invoice.subscription.plan_name}")
+    p.drawString(100, 680, f"Billing Cycle: {invoice.subscription.billing_cycle}")
+    p.drawString(100, 650, f"Amount: ₹{invoice.amount}")
+    p.drawString(100, 620, f"Date: {invoice.date.strftime('%d-%m-%Y')}")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    invoice.file.save(
+        f"{invoice.invoice_number}.pdf",
+        ContentFile(buffer.read())
+    )
+    buffer.close()

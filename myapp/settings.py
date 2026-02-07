@@ -20,6 +20,10 @@ load_dotenv(BASE_DIR / ".env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+RAZORPAY_KEY_ID = "rzp_test_xxxxx"
+RAZORPAY_KEY_SECRET = "xxxxxxxx"
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

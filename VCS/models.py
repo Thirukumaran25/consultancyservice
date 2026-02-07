@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from decimal import Decimal
+import uuid
+from django.utils import timezone
+from django.db.models import Count
 # Create your models here.
 
 
@@ -77,22 +80,93 @@ class Profile(models.Model):
     skills = models.TextField()
     resume = models.FileField(upload_to='resumes/', blank=True, null=True)
 
-    is_pro = models.BooleanField(default=False) 
+    is_pro = models.BooleanField(default=False)
+    is_proplus = models.BooleanField(default=False)
 
+    def application_limit(self):
+        if self.is_proplus:
+            return None      
+        if self.is_pro:
+            return 100
+        return 20
+
+    def applications_this_month(self):
+        now = timezone.now()
+        return JobApplication.objects.filter(
+            user=self.user,
+            applied_at__year=now.year,
+            applied_at__month=now.month
+        ).count()
+
+    def can_apply(self):
+        limit = self.application_limit()
+        if limit is None:
+            return True
+        return self.applications_this_month() < limit
+    
     def __str__(self):
         return self.user.username
 
 
 
 class Subscription(models.Model):
+    PLAN_CHOICES = (
+        ("Pro", "Pro"),
+        ("Pro Plus", "Pro Plus"),
+    )
+
+    BILLING_CYCLE_CHOICES = (
+        ("monthly", "Monthly"),
+        ("yearly", "Yearly"),
+    )
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    plan_name = models.CharField(max_length=50, default="Pro")
+    plan_name = models.CharField(max_length=50, choices=PLAN_CHOICES, default="Pro")
+    billing_cycle = models.CharField(max_length=10, choices=BILLING_CYCLE_CHOICES, default="monthly")
     start_date = models.DateField(auto_now_add=True)
     end_date = models.DateField()
     active = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.user.username
+        return f"{self.user.username} - {self.plan_name}"
+
+    @property
+    def price_display(self):
+        if self.plan_name == "Pro":
+            if self.billing_cycle == "monthly":
+                return "₹999/month"
+            else:
+                return "₹8,999/year"
+        elif self.plan_name == "Pro Plus":
+            return "₹29,999/year"
+        return "N/A"
+
+    @property
+    def price_amount(self):
+        if self.plan_name == "Pro":
+            return Decimal("999.00") if self.billing_cycle == "monthly" else Decimal("8999.00")
+        elif self.plan_name == "Pro Plus":
+            return Decimal("29999.00")
+        return Decimal("0.00")
+    
+
+class Invoice(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
+    invoice_number = models.CharField(max_length=50, unique=True, editable=False)
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    date = models.DateTimeField(auto_now_add=True)
+    paid = models.BooleanField(default=False)
+    file = models.FileField(upload_to="invoices/", null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            self.invoice_number = f"INV-{uuid.uuid4().hex[:10].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.invoice_number
+
 
 
 class Course(models.Model):
@@ -113,6 +187,7 @@ class Appointment(models.Model):
     def __str__(self):
         return f"{self.application.user} - {self.scheduled_at}"
 
+
 class Interaction(models.Model):
     application = models.ForeignKey(JobApplication, on_delete=models.CASCADE)
     admin = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -121,6 +196,7 @@ class Interaction(models.Model):
 
     def __str__(self):
         return f"{self.application.user} - {self.created_at}"
+
 
 class SupportQuery(models.Model):
     PRIORITY = [

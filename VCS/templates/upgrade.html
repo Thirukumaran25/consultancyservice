@@ -1,34 +1,188 @@
 {% extends 'base.html' %}
 
+{% block content %}
 <head>
-  <title>Upgrade</title>
+  <title>Upgrade Plan</title>
 </head>
 
-{% block content %}
+<body class="bg-gradient-to-br from-indigo-700 to-purple-800 min-h-screen flex flex-col items-center justify-center px-4 py-12">
 
-<body class="bg-gradient-to-r from-indigo-500 to-purple-600 min-h-screen flex items-center justify-center">
-    
-<div class="bg-white p-8 rounded-xl shadow-xl w-96 text-center">
-    <h2 class="text-2xl font-bold mb-4">Upgrade to Pro</h2>
-    <p class="text-gray-600 mb-4">Unlock premium job features</p>
-    
-    <ul class="text-left mb-6 space-y-2">
-        <li>✅ Unlimited Job Applications</li>
-        <li>✅ Resume Visibility to Recruiters</li>
-        <li>✅ Priority Job Alerts</li>
-        <li>✅ Save Unlimited Jobs</li>
-    </ul>
-    
-    <form method="POST">
-        {% csrf_token %}
-        <button class="bg-indigo-600 w-full text-white py-2 rounded hover:bg-indigo-700">
-            Upgrade Now
+  <!-- Container -->
+  <div class="w-full p-6 rounded-3xl bg-gradient-to-tr from-indigo-900 via-purple-900 to-pink-900 shadow-2xl">
+
+    <!-- Header -->
+    <div class="text-center text-white mb-6">
+      <h1 class="text-2xl md:text-3xl font-extrabold">Choose Your Plan</h1>
+      <p class="text-slate-200 mt-1 text-sm md:text-base">
+        Upgrade anytime. Monthly or yearly billing available.
+      </p>
+    </div>
+
+    <!-- Toggle Monthly / Yearly -->
+    <div class="flex justify-center mb-6">
+      <div class="bg-slate-800 rounded-full p-1 flex gap-1 text-sm font-semibold">
+        <button id="monthlyBtn"
+          class="px-4 py-1 rounded-full text-slate-300 transition text-sm">
+          Monthly
         </button>
-    </form>
+        <button id="yearlyBtn"
+          class="px-4 py-1 rounded-full bg-white text-indigo-700 shadow transition text-sm">
+          Yearly
+        </button>
+      </div>
+    </div>
 
-</div>
+    <!-- Pricing Cards Wrapper -->
+    <div id="plansWrapper" class="w-full flex flex-wrap justify-center items-stretch gap-6">
+
+      <!-- Pro Card -->
+      <div id="proCard"
+        class="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition w-full max-w-sm flex flex-col overflow-hidden">
+
+        <div class="bg-indigo-600 text-white text-center py-3 font-bold text-lg rounded-t-3xl">
+          Pro
+        </div>
+
+        <div class="p-5 flex-1 flex flex-col justify-between">
+
+          <!-- Pricing -->
+          <div class="text-center mb-4">
+            <p id="proMonthlyPrice" class="text-2xl font-extrabold text-gray-900 hidden">
+              ₹999
+            </p>
+            <p id="proYearlyPrice" class="text-2xl font-extrabold text-gray-900">
+              ₹8,999
+            </p>
+            <span id="proMonthlyLabel" class="text-gray-500 hidden">/ month</span>
+            <span id="proYearlyLabel" class="text-gray-500">/ year</span>
+          </div>
+
+          <!-- Features -->
+          <ul class="mb-4 text-gray-700 space-y-1 text-left text-sm">
+            <li class="flex items-center gap-2"><span class="text-indigo-600">✔</span> 100 Job Searches / month</li>
+            <li class="flex items-center gap-2"><span class="text-indigo-600">✔</span> AI Chatbot (250 queries)</li>
+            <li class="flex items-center gap-2"><span class="text-indigo-600">✔</span> Resume Optimization (3 runs)</li>
+            <li class="flex items-center gap-2"><span class="text-indigo-600">✔</span> 1 Consultant Session / month</li>
+            <li class="flex items-center gap-2"><span class="text-indigo-600">✔</span> Email Notifications</li>
+          </ul>
+
+          {% if user.profile.is_pro and not user.profile.is_proplus %}
+          <button disabled class="w-full py-2 rounded-xl bg-gray-300 text-gray-600 font-semibold cursor-not-allowed text-sm">
+            Current Plan
+          </button>
+          {% else %}
+          <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" id="proPlanInput" value="pro_yearly">
+            <button class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition text-sm">
+              Upgrade to Pro
+            </button>
+          </form>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- Pro Plus Card -->
+      <div id="proPlusCard"
+        class="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition w-full max-w-sm flex flex-col overflow-hidden">
+
+        <div class="bg-pink-500 text-white text-center py-3 font-bold text-lg rounded-t-3xl">
+          Pro Plus
+        </div>
+
+        <div class="p-5 flex-1 flex flex-col justify-between">
+
+          <!-- Pricing -->
+          <div class="text-center mb-4">
+            <p class="text-2xl font-extrabold text-gray-900">
+              ₹29,999
+            </p>
+            <span class="text-gray-500 text-sm">/ year</span>
+          </div>
+
+          <!-- Features -->
+          <ul class="mb-4 text-gray-700 space-y-1 text-left text-sm">
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> Unlimited Job Search</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> Unlimited AI Chatbot + Priority Escalation</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> Resume Optimization (20 runs + Consultant Review)</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> 4 Mock Interviews / month</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> 4 Consultant Sessions (2-hr SLA)</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> Email + WhatsApp Alerts</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> 1 VTS Course with Certificate</li>
+            <li class="flex items-center gap-2"><span class="text-pink-500">✔</span> Annual Placement Readiness Review</li>
+          </ul>
+
+          {% if user.profile.is_proplus %}
+          <button disabled class="w-full py-2 rounded-xl bg-gray-300 text-gray-600 font-semibold cursor-not-allowed text-sm">
+            Current Plan
+          </button>
+          {% else %}
+          <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="plan" value="pro_plus">
+            <button class="w-full py-2 rounded-xl bg-pink-500 hover:opacity-90 text-white font-semibold transition text-sm">
+              Upgrade to Pro Plus
+            </button>
+          </form>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toggle Script -->
+  <script>
+    const monthlyBtn = document.getElementById("monthlyBtn");
+    const yearlyBtn = document.getElementById("yearlyBtn");
+
+    const proMonthlyPrice = document.getElementById("proMonthlyPrice");
+    const proYearlyPrice = document.getElementById("proYearlyPrice");
+    const proMonthlyLabel = document.getElementById("proMonthlyLabel");
+    const proYearlyLabel = document.getElementById("proYearlyLabel");
+
+    const proPlusCard = document.getElementById("proPlusCard");
+    const proPlanInput = document.getElementById("proPlanInput");
+
+    // Default: Yearly
+    proMonthlyPrice.classList.add("hidden");
+    proYearlyPrice.classList.remove("hidden");
+    proMonthlyLabel.classList.add("hidden");
+    proYearlyLabel.classList.remove("hidden");
+    proPlusCard.classList.remove("hidden");
+    proPlanInput.value = "pro_yearly";
+
+    monthlyBtn.onclick = () => {
+      monthlyBtn.classList.add("bg-white", "text-indigo-700", "shadow");
+      yearlyBtn.classList.remove("bg-white", "text-indigo-700", "shadow");
+
+      proMonthlyPrice.classList.remove("hidden");
+      proYearlyPrice.classList.add("hidden");
+      proMonthlyLabel.classList.remove("hidden");
+      proYearlyLabel.classList.add("hidden");
+
+      // Hide Pro Plus for monthly
+      proPlusCard.classList.add("hidden");
+
+      proPlanInput.value = "pro_monthly";
+    };
+
+    yearlyBtn.onclick = () => {
+      yearlyBtn.classList.add("bg-white", "text-indigo-700", "shadow");
+      monthlyBtn.classList.remove("bg-white", "text-indigo-700", "shadow");
+
+      proMonthlyPrice.classList.add("hidden");
+      proYearlyPrice.classList.remove("hidden");
+      proMonthlyLabel.classList.add("hidden");
+      proYearlyLabel.classList.remove("hidden");
+
+      proPlusCard.classList.remove("hidden");
+
+      proPlanInput.value = "pro_yearly";
+    };
+  </script>
 
 </body>
-
-
 {% endblock %}

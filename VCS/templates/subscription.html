@@ -1,63 +1,93 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div class="max-w-4xl mx-auto mt-10 space-y-8">
+  <h1 class="text-center text-3xl font-bold mb-4 text-red-500">Subscription Details</h1>
 
-<div class="max-w-3xl mx-auto mt-10">
-  <h1 class="text-3xl font-extrabold text-red-600 text-center">Subscription Details</h1>
-  <h2 class="text-3xl font-extrabold text-white mb-6">
-    Your Subscription
-  </h2>
-
-  <div
-    class="relative overflow-hidden rounded-2xl
-           bg-gradient-to-br from-gray-900 via-gray-800 to-black
-           text-white shadow-2xl">
-
-    <!-- Glow -->
+  <!-- Subscription Info -->
+  <div class="p-8 rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-black shadow-2xl text-white relative">
     <div class="absolute inset-0 bg-gradient-to-r from-red-600/20 to-purple-600/20 blur-2xl"></div>
+    <div class="relative grid grid-cols-1 md:grid-cols-2 gap-6">
 
-    <div class="relative p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-      <!-- Left: Plan info -->
+      <!-- Plan Info -->
       <div>
-        <p class="uppercase tracking-widest text-sm text-gray-400">
-          Current Plan
-        </p>
-
-        <h3 class="text-4xl font-black mt-2">
-          {{ subscription.plan_name }}
-        </h3>
+        <p class="uppercase tracking-widest text-sm text-gray-400">Current Plan</p>
+        <h3 class="text-4xl font-black mt-2">{{ subscription.plan_name }}</h3>
+        <p class="mt-2 text-lg font-semibold">{{ subscription.price_display }}</p>
 
         <!-- Status badge -->
         <div class="mt-4">
           {% if subscription.active %}
-            <span class="inline-flex items-center px-4 py-1.5 rounded-full
-                         bg-green-500/20 text-green-400 text-sm font-semibold">
+            <span class="inline-flex items-center px-4 py-1.5 rounded-full bg-green-500/20 text-green-400 text-sm font-semibold">
               ● Active
             </span>
           {% else %}
-            <span class="inline-flex items-center px-4 py-1.5 rounded-full
-                         bg-red-500/20 text-red-400 text-sm font-semibold">
+            <span class="inline-flex items-center px-4 py-1.5 rounded-full bg-red-500/20 text-red-400 text-sm font-semibold">
               ● Expired
             </span>
           {% endif %}
         </div>
       </div>
 
-      <!-- Right: Dates -->
+      <!-- Dates -->
       <div class="space-y-4 text-gray-300">
         <div>
           <p class="text-sm text-gray-400">Start Date</p>
           <p class="text-lg font-semibold">{{ subscription.start_date }}</p>
         </div>
-
         <div>
           <p class="text-sm text-gray-400">End Date</p>
           <p class="text-lg font-semibold">{{ subscription.end_date }}</p>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
+
+  <!-- Billing History -->
+  {% if invoices %}
+  <div class="bg-gray-900 text-white p-6 rounded-2xl shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">Billing History</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b border-gray-700">
+            <th class="py-2 px-4 text-gray-400">Date</th>
+            <th class="py-2 px-4 text-gray-400">Amount (INR)</th>
+            <th class="py-2 px-4 text-gray-400">Paid</th>
+            <th class="py-2 px-4 text-gray-400">Invoice</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for invoice in invoices %}
+          <tr class="border-b border-gray-700">
+            <td class="py-2 px-4">{{ invoice.date|date:"M d, Y H:i" }}</td>
+            <td class="py-2 px-4">₹{{ invoice.amount }}</td>
+            <td class="py-2 px-4">
+              {% if invoice.paid %}
+                <span class="text-green-400 font-semibold">Paid</span>
+              {% else %}
+                <span class="text-red-400 font-semibold">Pending</span>
+              {% endif %}
+            </td>
+            <td class="py-2 px-4">
+              {% if invoice.file %}
+                <a href="{{ invoice.file.url }}" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-full text-sm font-semibold" target="_blank" rel="noopener noreferrer">
+                  Download
+                </a>
+              {% else %}
+                <span class="text-gray-400">N/A</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+    <p class="text-gray-400 text-center mt-4">No billing history available.</p>
+  {% endif %}
+
 </div>
 {% endblock %}

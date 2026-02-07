@@ -12,31 +12,38 @@
       My Profile
     </h1>
 
-    {% if profile.is_pro %}
+    {% if profile.is_proplus %}
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
-                   bg-green-100 text-green-700 px-4 py-1.5
-                   rounded-full font-semibold text-sm">
+                  bg-purple-100 text-purple-700 px-4 py-1.5
+                  rounded-full font-semibold text-sm">
+        <i class="bx bx-star"></i> Pro Plus User
+      </span>
+    {% elif profile.is_pro %}
+      <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
+                  bg-green-100 text-green-700 px-4 py-1.5
+                  rounded-full font-semibold text-sm">
         <i class="bx bx-box"></i> Pro User
       </span>
     {% else %}
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
-                   bg-red-100 text-red-600 px-4 py-1.5
-                   rounded-full font-semibold text-sm">
+                  bg-red-100 text-red-600 px-4 py-1.5
+                  rounded-full font-semibold text-sm">
         <i class="bx bx-box"></i> Free User
       </span>
     {% endif %}
+
   </div>
 
   <!-- Upgrade Banner for Free Users -->
-  {% if not profile.is_pro %}
+  {% if not profile.is_proplus %}
   <div class="bg-indigo-600 text-white p-5 rounded-xl flex flex-col sm:flex-row
               sm:items-center sm:justify-between gap-4 shadow-lg">
     <p class="font-medium">
       Unlock AI Resume Optimizer, Job Matching & Premium Courses
     </p>
-    <a href="{% url 'upgrade_pro' %}"
+    <a href="{% url 'upgrade_plan' %}"
        class="bg-white text-indigo-600 font-semibold px-5 py-2 rounded-full text-center hover:scale-105 transition">
-      Upgrade to Pro
+      Upgrade to Pro Or Plus
     </a>
   </div>
   {% endif %}
