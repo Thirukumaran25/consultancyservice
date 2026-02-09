@@ -1,0 +1,35 @@
+<form id="appointmentForm" method="post">
+    {% csrf_token %}
+    
+    <!-- Candidate Select -->
+    <div class="mb-4">
+        <label for="{{ form.application.id_for_label }}" class="block text-sm font-medium text-gray-700">Select Candidate:</label>
+        {{ form.application }}
+        {% if form.application.errors %}
+            <div class="text-red-500 text-sm">{{ form.application.errors }}</div>
+        {% endif %}
+    </div>
+    
+    <!-- Date & Time -->
+    <div class="mb-4">
+        <label for="{{ form.scheduled_at.id_for_label }}" class="block text-sm font-medium text-gray-700">Date & Time:</label>
+        {{ form.scheduled_at }}
+        {% if form.scheduled_at.errors %}
+            <div class="text-red-500 text-sm">{{ form.scheduled_at.errors }}</div>
+        {% endif %}
+    </div>
+    
+    <!-- Notes -->
+    <div class="mb-4">
+        <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700">Notes (optional):</label>
+        {{ form.notes }}
+        {% if form.notes.errors %}
+            <div class="text-red-500 text-sm">{{ form.notes.errors }}</div>
+        {% endif %}
+    </div>
+    
+    <!-- Submit Button -->
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">
+        {% if form.instance.pk %}Update{% else %}Schedule{% endif %} Appointment
+    </button>
+</form>

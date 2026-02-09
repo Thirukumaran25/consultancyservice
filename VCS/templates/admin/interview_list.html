@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Boxicons (put in base.html if not already there) -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Back -->
+    <a href="{% url 'admin_dashboard' %}"
+       class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition">
+        <i class='bx bx-arrow-back'></i>
+        Back to Dashboard
+    </a>
+
+    <!-- Header -->
+    <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                Scheduled Interviews
+            </h1>
+            <p class="mt-1 text-slate-500">
+                Manage and schedule interview sessions
+            </p>
+        </div>
+
+        <button onclick="openCreateModal()"
+                class="inline-flex items-center gap-2
+                       bg-gradient-to-r from-blue-600 to-indigo-600
+                       text-white px-6 py-3 rounded-xl font-semibold
+                       shadow-lg hover:shadow-xl hover:scale-[1.02]
+                       transition">
+            <i class='bx bx-plus-circle text-xl'></i>
+            Create Interview
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="mt-8 flex flex-col lg:flex-row gap-4">
+        <div class="relative w-full lg:w-1/3">
+            <i class='bx bx-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400'></i>
+            <input id="searchInput" type="text"
+                   placeholder="Search candidate..."
+                   class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200
+                          focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm">
+        </div>
+
+        <select id="statusFilter"
+                class="w-full lg:w-1/4 px-4 py-3 rounded-xl border border-slate-200
+                       focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm">
+            <option value="">All Status</option>
+            <option value="SCHEDULED">Scheduled</option>
+            <option value="DONE">Done</option>
+            <option value="POSTPONED">Postponed</option>
+        </select>
+
+        <button id="clearFilters"
+                class="inline-flex items-center gap-2 px-5 py-3 rounded-xl
+                       bg-slate-100 hover:bg-slate-200 transition font-medium">
+            <i class='bx bx-refresh'></i>
+            Reset
+        </button>
+    </div>
+
+    <!-- Table -->
+    <div class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <table class="min-w-full">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Candidate</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Date & Time</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody id="appointmentTable" class="divide-y divide-slate-100">
+                {% for appt in appointments %}
+                <tr class="appointment-row hover:bg-slate-50 transition"
+                    data-status="{{ appt.status }}">
+                    <td class="px-6 py-4 font-medium text-slate-900">
+                        {{ appt.application.user.username }}
+                    </td>
+
+                    <td class="px-6 py-4 text-slate-600">
+                        {{ appt.scheduled_at }}
+                    </td>
+
+                    <td class="px-6 py-4">
+                        {% if appt.status == 'SCHEDULED' %}
+                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full
+                                     bg-blue-100 text-blue-700 text-xs font-semibold">
+                            <i class='bx bx-time'></i> Scheduled
+                        </span>
+                        {% elif appt.status == 'DONE' %}
+                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full
+                                     bg-emerald-100 text-emerald-700 text-xs font-semibold">
+                            <i class='bx bx-check-circle'></i> Done
+                        </span>
+                        {% elif appt.status == 'POSTPONED' %}
+                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full
+                                     bg-yellow-100 text-yellow-700 text-xs font-semibold">
+                            <i class='bx bx-pause-circle'></i> Postponed
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <td class="px-6 py-4 text-right space-x-4">
+                        <button onclick="openEditModal({{ appt.id }})"
+                                class="text-blue-600 hover:text-blue-800 font-medium">
+                            Edit
+                        </button>
+                        <button onclick="openPostponeModal({{ appt.id }})"
+                                class="text-yellow-600 hover:text-yellow-800 font-medium">
+                            Postpone
+                        </button>
+                        <a href="{% url 'appointment_mark_done' appt.id 'DONE' %}"
+                           class="text-emerald-600 hover:text-emerald-800 font-medium">
+                            Done
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-6 py-10 text-center text-slate-500">
+                        No interviews found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="appointmentModal"
+     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
+            flex items-center justify-center">
+
+    <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl
+                transform scale-95 transition">
+
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4
+                    flex items-center justify-between">
+            <h3 id="modalTitle" class="text-white font-bold text-lg"></h3>
+            <button onclick="closeModal()" class="text-white text-2xl">&times;</button>
+        </div>
+
+        <form id="appointmentForm" class="p-6 space-y-5 bg-slate-50">
+            {% csrf_token %}
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                    Candidate
+                </label>
+                <select id="id_user" name="user"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-300
+                               focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select candidate</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                    Date & Time
+                </label>
+                <input type="datetime-local" id="id_scheduled_at" name="scheduled_at"
+                       class="w-full px-4 py-3 rounded-xl border border-slate-300
+                              focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                    Notes
+                </label>
+                <textarea id="id_notes" name="notes" rows="3"
+                          class="w-full px-4 py-3 rounded-xl border border-slate-300
+                                 focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="bg-gradient-to-r from-blue-600 to-indigo-600
+                               text-white px-6 py-3 rounded-xl font-semibold
+                               shadow hover:shadow-lg transition">
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+const modal = document.getElementById('appointmentModal');
+const form = document.getElementById('appointmentForm');
+
+function openCreateModal(){
+    modal.classList.remove('hidden');
+    form.action = "{% url 'appointment_create_interview' %}";
+    document.getElementById('modalTitle').innerText = "Create Interview";
+}
+
+function openEditModal(id){
+    modal.classList.remove('hidden');
+    form.action = "{% url 'appointment_edit' 0 %}".replace('0', id);
+    document.getElementById('modalTitle').innerText = "Edit Interview";
+}
+
+function openPostponeModal(id){
+    modal.classList.remove('hidden');
+    form.action = "{% url 'appointment_postpone' 0 %}".replace('0', id);
+    document.getElementById('modalTitle').innerText = "Postpone Interview";
+}
+
+function closeModal(){
+    modal.classList.add('hidden');
+}
+
+// Filters
+const searchInput = document.getElementById('searchInput');
+const statusFilter = document.getElementById('statusFilter');
+
+function filterRows(){
+    document.querySelectorAll('.appointment-row').forEach(row => {
+        const name = row.children[0].innerText.toLowerCase();
+        const status = row.dataset.status;
+        const matchName = name.includes(searchInput.value.toLowerCase());
+        const matchStatus = !statusFilter.value || status === statusFilter.value;
+        row.style.display = (matchName && matchStatus) ? '' : 'none';
+    });
+}
+
+searchInput.addEventListener('input', filterRows);
+statusFilter.addEventListener('change', filterRows);
+document.getElementById('clearFilters').onclick = () => {
+    searchInput.value = '';
+    statusFilter.value = '';
+    filterRows();
+};
+</script>
+
+{% endblock %}

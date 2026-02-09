@@ -179,13 +179,51 @@ class Course(models.Model):
 
 
 class Appointment(models.Model):
+    TYPE_CHOICES = [
+        ('INTERVIEW', 'Interview'),
+        ('ONE_ON_ONE', '1-1 Session'),
+    ]
+
+    STATUS_CHOICES = [
+        ('SCHEDULED', 'Scheduled'),
+        ('DONE', 'Done'),
+        ('POSTPONED', 'Postponed'),
+    ]
+
     application = models.ForeignKey(JobApplication, on_delete=models.CASCADE)
+    consultant = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="consultant_appointments"
+    )
+    appointment_type = models.CharField(max_length=20,
+                                        choices=TYPE_CHOICES,
+                                        default='INTERVIEW' )
     scheduled_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED')
     notes = models.TextField(blank=True)
-    reminder_sent = models.BooleanField(default=False)
+    created_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.application.user} - {self.scheduled_at}"
+        return f"{self.application.user} - {self.appointment_type}"
+
+
+class CalendarEvent(models.Model):
+    title = models.CharField(max_length=255)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    related_appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    def __str__(self):
+        return self.title
 
 
 class Interaction(models.Model):

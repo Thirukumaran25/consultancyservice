@@ -1,7 +1,10 @@
 from django.shortcuts import render,redirect,get_object_or_404
 from django.contrib.auth import authenticate, login
-from .forms import SignupForm,ProfileForm,JobApplicationForm,JobForm
-from .models import ChatQuestionAnswer,Invoice, CandidateChat,Job,Profile,Subscription,Course,JobApplication,Appointment,Interaction,SupportQuery,Notification
+from .forms import SignupForm,ProfileForm,JobApplicationForm,JobForm,AppointmentForm,PostponeAppointmentForm
+from .models import (ChatQuestionAnswer,Invoice, CandidateChat,
+                     Job,Profile,Subscription,Course,
+                     JobApplication,Appointment,Interaction,
+                     SupportQuery,Notification,CalendarEvent)
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -22,6 +25,9 @@ from django.utils.timezone import now
 import razorpay
 from django.conf import settings
 import uuid
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.contrib.auth.models import User 
 
 
 
@@ -41,6 +47,7 @@ def highlight_keywords(text, keywords):
 # Create your views here.
 
 FREE_CHAT_LIMIT = 10
+PRO_CHAT_LIMIT = 100
 
 
 @csrf_exempt
@@ -60,11 +67,19 @@ def chatbot_api(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
 
-    if not profile.is_pro and user_chat_count >= FREE_CHAT_LIMIT:
-        return JsonResponse({
-            'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro.",
-            'upgrade_required': True
-        })
+    if not profile.is_pro and not profile.is_proplus:
+        if user_chat_count >= FREE_CHAT_LIMIT:
+            return JsonResponse({
+                'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro.",
+                'upgrade_required': True
+            })
+
+    elif profile.is_pro and not profile.is_proplus:
+        if user_chat_count >= PRO_CHAT_LIMIT:
+            return JsonResponse({
+                'reply': "⚠️ You have reached your Pro limit of 100 questions. Please upgrade to Pro Plus for unlimited access.",
+                'upgrade_required': True
+            })
     
     job_keywords = ["job", "jobs", "vacancy", "opening", "developer", "engineer"]
     if any(word in user_question for word in job_keywords):
@@ -661,6 +676,9 @@ def profile(request):
               profile.experience, profile.skills, profile.resume]
     filled = sum(1 for f in fields if f)
     completion = int((filled / len(fields)) * 100) 
+     
+
+    subscription = getattr(request.user, "subscription", None)
 
     if request.method == "POST":
         form = ProfileForm(request.POST, request.FILES, instance=profile)
@@ -672,7 +690,8 @@ def profile(request):
     return render(request, 'profile.html', {
         'form': form,
         'profile': profile,
-        'completion': completion
+        'completion': completion,
+        'subscription': subscription,
     })
 
 
@@ -721,11 +740,13 @@ def admin_dashboard(request):
 def admin_candidates(request):
     q = request.GET.get('q', '')
 
+    # Get all profiles except staff/superusers
     profiles = Profile.objects.select_related('user').filter(
         user__is_superuser=False,
         user__is_staff=False
     )
 
+    # Filter by search query
     if q:
         profiles = profiles.filter(
             Q(user__username__icontains=q) |
@@ -733,7 +754,15 @@ def admin_candidates(request):
             Q(location__icontains=q)
         )
 
-    return render(request, 'admin/candidates.html', {'profiles': profiles})
+    # Attach plan_name to each profile
+    for profile in profiles:
+        try:
+            subscription = Subscription.objects.get(user=profile.user, active=True)
+            profile.plan_name = subscription.plan_name  # "Pro" or "Pro Plus"
+        except Subscription.DoesNotExist:
+            profile.plan_name = None
+
+    return render(request, 'admin/candidates.html', {'profiles': profiles, 'q': q})
 
 
 
@@ -1099,3 +1128,247 @@ def generate_invoice_pdf(invoice):
         ContentFile(buffer.read())
     )
     buffer.close()
+
+
+
+
+@recruiter_required
+def consultant_dashboard(request):
+    applications = JobApplication.objects.select_related('user', 'job').order_by('-applied_at')[:10]  # Limit to 10 for performance
+    return render(request, 'admin/consultant_dashboard.html', {'applications': applications})
+
+
+def appointment_list(request):
+    appt_type = request.GET.get("type")
+    search_query = request.GET.get("search", "")
+
+    appointments = Appointment.objects.all()
+
+    if appt_type:
+        appointments = appointments.filter(appointment_type=appt_type)
+
+    if search_query:
+        appointments = appointments.filter(application__user__username__icontains=search_query)
+
+    # Dynamically select template based on appt_type (no fallback)
+    template_name = {
+        'INTERVIEW': 'admin/interview_list.html',
+        'ONE_ON_ONE': 'admin/one_on_one_list.html',
+    }[appt_type] 
+
+    users = User.objects.filter(
+        profile__isnull=False,
+        is_superuser=False
+    ).filter(
+        Q(profile__is_pro=True) | Q(profile__is_proplus=True)
+    ).select_related('profile')
+
+    context = {
+        "appointments": appointments,
+        "appt_type": appt_type,
+        "search_query": search_query,
+        "users": users,  # Changed from 'applications' to 'users'
+    }
+    return render(request, template_name, context)
+
+
+@recruiter_required
+def create_interview_appointment(request):
+    return _create_appointment(request, 'INTERVIEW')
+
+@recruiter_required
+def create_one_on_one_appointment(request):
+    return _create_appointment(request, 'ONE_ON_ONE')
+
+def _create_appointment(request, appointment_type):
+    form = AppointmentForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        user = form.cleaned_data['user']
+        application = JobApplication.objects.filter(user=user).first()
+        if not application:
+            first_job = Job.objects.first()
+            application = JobApplication.objects.create(user=user, job=first_job)
+
+        appointment = form.save(commit=False)
+        appointment.application = application
+        appointment.consultant = request.user
+        appointment.appointment_type = appointment_type
+        appointment.save()  # Save appointment first
+
+        # Create CalendarEvent after appointment is saved
+        calendar_event = CalendarEvent.objects.create(
+            title=f"{appointment_type.replace('_',' ')} - {appointment.application.user.username}",
+            user=appointment.application.user,
+            start_time=appointment.scheduled_at,
+            end_time=appointment.scheduled_at + timezone.timedelta(hours=1),  
+            related_appointment=appointment
+        )
+        print(f"CalendarEvent created: {calendar_event.title} for user {calendar_event.user.username}")
+
+        Interaction.objects.create(
+            application=appointment.application,
+            admin=request.user,
+            message=f"{appointment_type.replace('_',' ')} scheduled on {appointment.scheduled_at}"
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        return redirect(reverse('appointment_list') + f'?type={appointment_type}')
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('admin/appointment_form.html', {'form': form}, request)
+        return JsonResponse({'html': html})
+
+    return redirect(reverse('appointment_list') + f'?type={appointment_type}')
+
+@recruiter_required
+def edit_appointment(request, appointment_id):
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+    form = AppointmentForm(request.POST or None, instance=appointment)
+
+    if request.method == "POST" and form.is_valid():
+        user = form.cleaned_data['user'] 
+        application = JobApplication.objects.filter(user=user).first()
+        if not application:
+            first_job = Job.objects.first()
+            application = JobApplication.objects.create(user=user, job=first_job)
+
+        form.instance.application = application 
+        form.save()
+
+        Interaction.objects.create(
+            application=appointment.application,
+            admin=request.user,
+            message=f"{appointment.appointment_type} updated on {appointment.scheduled_at}"
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        return redirect(reverse('appointment_list') + f'?type={appointment.appointment_type}')
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('admin/appointment_form.html', {'form': form}, request)
+        return JsonResponse({'html': html})
+    return redirect(reverse('appointment_list') + f'?type={appointment.appointment_type}')
+
+
+@recruiter_required
+def postpone_appointment(request, appointment_id):
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+    form = PostponeAppointmentForm(request.POST or None, instance=appointment)
+
+    if request.method == "POST" and form.is_valid():
+        user = form.cleaned_data.get('user')
+        if user:
+            application = JobApplication.objects.filter(user=user).first()
+            if not application:
+                first_job = Job.objects.first()
+                application = JobApplication.objects.create(user=user, job=first_job)
+            form.instance.application = application
+        form.save()
+
+        Interaction.objects.create(
+            application=appointment.application,
+            admin=request.user,
+            message=f"{appointment.appointment_type} postponed to {appointment.scheduled_at}"
+        )
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        return JsonResponse({"success": True})
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('admin/postpone_appointment_form.html', {'form': form}, request)
+        return JsonResponse({'html': html})
+    
+    return redirect(reverse('appointment_list') + f'?type={appointment.appointment_type}')
+
+@recruiter_required
+def update_appointment_status(request, appointment_id, status):
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+    if status.upper() in ['SCHEDULED', 'DONE', 'POSTPONED']:
+        appointment.status = status.upper()
+        appointment.save()
+
+        Interaction.objects.create(
+            application=appointment.application,
+            admin=request.user,
+            message=f"{appointment.appointment_type} marked as {status}"
+        )
+
+    return redirect(reverse ('appointment_list') + f'?type={appointment.appointment_type}')
+
+@recruiter_required
+def appointment_list_api(request):
+    q = request.GET.get("q", "")
+    apptype = request.GET.get("type", "")
+    status = request.GET.get("status", "")
+    start_date_str = request.GET.get("start_date", "")
+    end_date_str = request.GET.get("end_date", "")
+
+    appointments = Appointment.objects.select_related(
+        "application__user", "application__job"
+    ).order_by("scheduled_at")
+
+    if q:
+        appointments = appointments.filter(
+            application__user__username__icontains=q
+        )
+
+    if apptype:
+        appointments = appointments.filter(appointment_type=apptype)
+
+    if status:
+        appointments = appointments.filter(status=status)
+
+    # Date filtering
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            appointments = appointments.filter(scheduled_at__date__gte=start_date)
+        except ValueError:
+            pass  # Ignore invalid date
+
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            appointments = appointments.filter(scheduled_at__date__lte=end_date)
+        except ValueError:
+            pass  # Ignore invalid date
+
+    data = []
+    for a in appointments:
+        data.append({
+            "id": a.id,
+            "candidate": a.application.user.username,
+            "job": a.application.job.job_title,
+            "type": a.appointment_type,
+            "status": a.status,
+            "datetime": a.scheduled_at.strftime("%d %b %Y %H:%M"),
+            "notes": a.notes,
+        })
+
+    return JsonResponse(data, safe=False)
+
+
+@recruiter_required
+def admin_calendar(request):
+    return render(request, "admin/calendar.html")
+
+
+@recruiter_required
+def calendar_events(request):
+    events = CalendarEvent.objects.select_related('related_appointment')
+    print(f"Fetching {events.count()} calendar events")
+    data = []
+    for e in events:
+        data.append({
+            "id": e.id,
+            "title": e.title,
+            "start": e.start_time.isoformat(),
+            "end": e.end_time.isoformat(),
+            "appointment_id": e.related_appointment.id if e.related_appointment else None,  # Optional: include related appointment
+        })
+
+    return JsonResponse(data, safe=False)

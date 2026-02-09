@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Profile,JobApplication,Job
+from .models import Profile,JobApplication,Job,Appointment
 from django.forms import ModelForm
 from django.core.exceptions import ValidationError
 import re
@@ -104,3 +104,75 @@ class JobForm(ModelForm):
             'eligibility',
             'job_description',
         ]
+
+
+# class AppointmentForm(forms.ModelForm):
+#     application = forms.ModelChoiceField(
+#         queryset=JobApplication.objects.select_related('user', 'job'),
+#         empty_label="Select a Candidate",
+#         widget=forms.Select(attrs={'class': 'border rounded p-2 w-full'}),
+#         label="Candidate"
+#     )
+    
+#     class Meta:
+#         model = Appointment
+#         fields = ['application', 'scheduled_at', 'notes']
+#         widgets = {
+#             'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
+#             'notes': forms.Textarea(attrs={'rows': 4}),
+#         }
+    
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.fields['application'].label_from_instance = lambda obj: obj.user.username
+
+
+# class PostponeAppointmentForm(forms.ModelForm):
+#     class Meta:
+#         model = Appointment
+#         fields = ['scheduled_at', 'notes']
+#         widgets = {
+#             'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
+#             'notes': forms.Textarea(attrs={'rows': 4}),
+#         }
+    
+#     def save(self, commit=True):
+#         instance = super().save(commit=False)
+#         instance.status = 'POSTPONED'
+#         if commit:
+#             instance.save()
+#         return instance
+
+
+class AppointmentForm(forms.ModelForm):
+    user = forms.ModelChoiceField(
+        queryset=User.objects.filter(profile__isnull=False),  # Only users with profiles
+        empty_label="Select a Candidate",
+        widget=forms.Select(attrs={'class': 'border rounded p-2 w-full'}),
+        label="Candidate"
+    )
+    
+    class Meta:
+        model = Appointment
+        fields = ['user', 'scheduled_at', 'notes']  # Changed 'application' to 'user'
+        widgets = {
+            'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
+            'notes': forms.Textarea(attrs={'rows': 4}),
+        }
+
+class PostponeAppointmentForm(forms.ModelForm):
+    class Meta:
+        model = Appointment
+        fields = ['scheduled_at', 'notes']
+        widgets = {
+            'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
+            'notes': forms.Textarea(attrs={'rows': 4}),
+        }
+    
+    # Override save to set status to POSTPONED
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.status = 'POSTPONED'
+        if commit:
+            instance.save()
+        return instance

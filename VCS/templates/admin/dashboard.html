@@ -1,113 +1,137 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1 class="text-3xl font-bold mb-8 flex items-center gap-2">
-    <i class='bx bx-bar-chart-alt-2 text-blue-600 text-3xl'></i>
+<!-- Page Wrapper -->
+<div class="px-4 sm:px-6 lg:px-8">
+
+<h1 class="text-2xl sm:text-3xl font-bold mb-6 flex items-center gap-2">
+    <i class='bx bx-bar-chart-alt-2 text-blue-600 text-2xl sm:text-3xl'></i>
     Admin Dashboard
 </h1>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- DASHBOARD CARDS -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
 
 <!-- Jobs -->
-<a href="{% url 'admin_jobs' %}" 
-class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white hover:scale-105 transition transform">
+<a href="{% url 'admin_jobs' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
-        <p class="text-sm opacity-80">Total Jobs</p>
-        <h2 class="text-3xl font-bold">{{ total_jobs }}</h2>
+        <p class="text-xs sm:text-sm opacity-80">Total Jobs</p>
+        <h2 class="text-2xl sm:text-3xl font-bold">{{ total_jobs }}</h2>
     </div>
-    <div class="text-4xl">
-        <i class='bx bx-briefcase'></i>
-    </div>
+    <i class='bx bx-briefcase text-3xl sm:text-4xl'></i>
 </div>
 
-<p class="mt-4 text-sm opacity-80">Manage job postings</p>
+<p class="mt-3 text-xs sm:text-sm opacity-80">Manage job postings</p>
 </a>
 
 <!-- Candidates -->
-<a href="{% url 'admin_candidates' %}" 
-class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-green-500 to-green-700 text-white hover:scale-105 transition transform">
+<a href="{% url 'admin_candidates' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-green-500 to-green-700 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
-        <p class="text-sm opacity-80">Candidates</p>
-        <h2 class="text-3xl font-bold">{{ total_candidates }}</h2>
+        <p class="text-xs sm:text-sm opacity-80">Candidates</p>
+        <h2 class="text-2xl sm:text-3xl font-bold">{{ total_candidates }}</h2>
     </div>
-    <div class="text-4xl">
-        <i class='bx bx-user'></i>
-    </div>
+    <i class='bx bx-user text-3xl sm:text-4xl'></i>
 </div>
 
-<p class="mt-4 text-sm opacity-80">View all candidates</p>
+<p class="mt-3 text-xs sm:text-sm opacity-80">View all candidates</p>
 </a>
 
 <!-- Applications -->
-<a href="{% url 'admin_analytics' %}" 
-class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-yellow-400 to-yellow-600 text-white hover:scale-105 transition transform">
+<a href="{% url 'admin_analytics' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-yellow-400 to-yellow-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
-        <p class="text-sm opacity-80">Applications</p>
-        <h2 class="text-3xl font-bold">{{ total_applications }}</h2>
+        <p class="text-xs sm:text-sm opacity-80">Applications</p>
+        <h2 class="text-2xl sm:text-3xl font-bold">{{ total_applications }}</h2>
     </div>
-    <div class="text-4xl">
-        <i class='bx bx-file'></i>
-    </div>
+    <i class='bx bx-file text-3xl sm:text-4xl'></i>
 </div>
 
-<p class="mt-4 text-sm opacity-80">Track job applications</p>
+<p class="mt-3 text-xs sm:text-sm opacity-80">Track job applications</p>
 </a>
 
 <!-- Queries -->
-<a href="{% url 'admin_queries' %}" 
-class="relative p-6 rounded-2xl shadow-lg bg-gradient-to-r from-red-500 to-red-700 text-white hover:scale-105 transition transform">
+<a href="{% url 'admin_queries' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-red-500 to-red-700 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
-        <p class="text-sm opacity-80">Open Queries</p>
-        <h2 class="text-3xl font-bold">{{ pending_queries }}</h2>
+        <p class="text-xs sm:text-sm opacity-80">Open Queries</p>
+        <h2 class="text-2xl sm:text-3xl font-bold">{{ pending_queries }}</h2>
     </div>
-    <div class="text-4xl">
-        <i class='bx bx-help-circle'></i>
-    </div>
+    <i class='bx bx-help-circle text-3xl sm:text-4xl'></i>
 </div>
 
-<p class="mt-4 text-sm opacity-80">Support requests</p>
+<p class="mt-3 text-xs sm:text-sm opacity-80">Support requests</p>
+</a>
+
+<!-- Consultant Dashboard -->
+<a href="{% url 'consultant_dashboard' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-purple-700 text-white transition hover:shadow-xl">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-xs sm:text-sm opacity-80">Consultant</p>
+        <h2 class="text-lg sm:text-xl font-bold">Schedules</h2>
+    </div>
+    <i class='bx bx-calendar text-3xl sm:text-4xl'></i>
+</div>
+
+<p class="mt-3 text-xs sm:text-sm opacity-80">Interviews & 1-1 Sessions</p>
+</a>
+
+<!-- Consultant Calendar -->
+<a href="{% url 'admin_calendar' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-700 text-white transition hover:shadow-xl">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-xs sm:text-sm opacity-80">Consultant</p>
+        <h2 class="text-lg sm:text-xl font-bold">Calendar</h2>
+    </div>
+    <i class='bx bx-calendar text-3xl sm:text-4xl'></i>
+</div>
+
+<p class="mt-3 text-xs sm:text-sm opacity-80">Interviews & 1-1 Sessions</p>
 </a>
 
 </div>
 
-<!-- Optional analytics section -->
-<div class="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- ANALYTICS -->
+<div class="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-<div class="bg-white rounded-2xl shadow p-6">
-    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-        <i class='bx bx-line-chart text-blue-600'></i>
-        Quick Stats
+<div class="bg-white rounded-2xl shadow p-5 sm:p-6">
+    <h3 class="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2">
+        <i class='bx bx-line-chart text-blue-600'></i> Quick Stats
     </h3>
-    <ul class="space-y-2 text-gray-600">
-        <li><i class='bx bx-check-circle text-green-500'></i> Active Jobs: {{ total_jobs }}</li>
-        <li><i class='bx bx-check-circle text-green-500'></i> Registered Candidates: {{ total_candidates }}</li>
-        <li><i class='bx bx-check-circle text-green-500'></i> Total Applications: {{ total_applications }}</li>
-        <li><i class='bx bx-check-circle text-green-500'></i> Pending Queries: {{ pending_queries }}</li>
+    <ul class="space-y-2 text-sm text-gray-600">
+        <li>✅ Active Jobs: {{ total_jobs }}</li>
+        <li>✅ Registered Candidates: {{ total_candidates }}</li>
+        <li>✅ Total Applications: {{ total_applications }}</li>
+        <li>✅ Pending Queries: {{ pending_queries }}</li>
     </ul>
 </div>
 
-<div class="bg-white rounded-2xl shadow p-6">
-    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
-        <i class='bx bx-cog text-purple-600'></i>
-        Admin Actions
+<div class="bg-white rounded-2xl shadow p-5 sm:p-6">
+    <h3 class="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2">
+        <i class='bx bx-cog text-purple-600'></i> Admin Actions
     </h3>
-    <div class="grid grid-cols-2 gap-4">
-        <a href="{% url 'chatfaq' %}" 
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="{% url 'chatfaq' %}"
            class="bg-blue-600 text-white p-3 rounded-lg text-center hover:bg-blue-700 flex items-center justify-center gap-2">
-            <i class='bx bx-bot'></i>
-            Chatbot FAQ
-        </a>  
+            <i class='bx bx-bot'></i> Chatbot FAQ
+        </a>
     </div>
 </div>
 
 </div>
 
+</div>
 {% endblock %}

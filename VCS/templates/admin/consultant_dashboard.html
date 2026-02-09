@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+    <!-- Back button -->
+    <a href="{% url 'admin_dashboard' %}"
+       class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition">
+        <i class='bx bx-arrow-back text-lg'></i>
+        Back to Dashboard
+    </a>
+
+    <!-- Title -->
+    <h1 class="mt-8 text-3xl font-bold tracking-tight text-slate-900">
+        Schedule Sessions
+    </h1>
+    <p class="mt-2 text-slate-500">
+        Choose the type of session you want to schedule.
+    </p>
+
+    <!-- Cards -->
+    <div class="mt-10 grid gap-8 md:grid-cols-2">
+
+        <!-- Interview -->
+        <a href="{% url 'appointment_list' %}?type=INTERVIEW"
+           class="group relative overflow-hidden rounded-2xl
+                  border border-white/20
+                  bg-gradient-to-br from-indigo-500/10 to-indigo-500/5
+                  backdrop-blur-xl shadow-xl hover:shadow-2xl
+                  transition-all duration-300 hover:-translate-y-1">
+
+            <div class="p-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold text-slate-900">
+                            Mock Interview
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Schedule candidate interviews
+                        </p>
+                    </div>
+
+                    <div class="flex items-center justify-center w-14 h-14 rounded-xl
+                                bg-indigo-500/10 text-indigo-600 text-3xl">
+                        <i class='bx bx-calendar'></i>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center gap-2 text-indigo-600 font-medium">
+                    Schedule Interview
+                    <i class='bx bx-right-arrow-alt text-xl transition-transform group-hover:translate-x-1'></i>
+                </div>
+            </div>
+        </a>
+
+        <!-- One-on-One -->
+        <a href="{% url 'appointment_list' %}?type=ONE_ON_ONE"
+           class="group relative overflow-hidden rounded-2xl
+                  border border-white/20
+                  bg-gradient-to-br from-emerald-500/10 to-emerald-500/5
+                  backdrop-blur-xl shadow-xl hover:shadow-2xl
+                  transition-all duration-300 hover:-translate-y-1">
+
+            <div class="p-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold text-slate-900">
+                            1-on-1 Session
+                        </h2>
+                        <p class="mt-1 text-sm text-slate-500">
+                            Personal mentoring or reviews
+                        </p>
+                    </div>
+
+                    <div class="flex items-center justify-center w-14 h-14 rounded-xl
+                                bg-emerald-500/10 text-emerald-600 text-3xl">
+                        <i class='bx bx-user-voice'></i>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center gap-2 text-emerald-600 font-medium">
+                    Schedule Session
+                    <i class='bx bx-right-arrow-alt text-xl transition-transform group-hover:translate-x-1'></i>
+                </div>
+            </div>
+        </a>
+
+    </div>
+</div>
+
+{% endblock %}

@@ -9,7 +9,10 @@ from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
                     admin_application_detail,admin_applications_by_status,
                     send_support_query,candidate_chat,send_message,clear_chat,
                     chatbot_api,chat_history,chatfaq_delete,chatfaq_list,chatfaq_save,
-                    mark_query_resolved,reply_query,payment_success,)
+                    mark_query_resolved,reply_query,payment_success,calendar_events,
+                    appointment_list_api,admin_calendar,consultant_dashboard,
+                    appointment_list,create_interview_appointment,create_one_on_one_appointment,
+                    edit_appointment,postpone_appointment,update_appointment_status)
 
 urlpatterns = [
     path('', home, name='home'),
@@ -67,4 +70,21 @@ urlpatterns = [
     path('dashboard/applications/<int:application_id>/', admin_application_detail, name='admin_application_detail'),
     path('dashboard/applications/status/<str:status>/', admin_applications_by_status, name='admin_applications_by_status'),
     
+
+    path("dashboard/consultant/",consultant_dashboard,name="consultant_dashboard"),
+    path("dashboard/appointments/list/", appointment_list_api,name="appointment_list"),
+    path("dashboard/calendar/", admin_calendar, name="admin_calendar"),
+    path("dashboard/calendar/events/", calendar_events, name="calendar_events"),
+    
+    
+    path('dashboard/appointments/', appointment_list, name='appointment_list'),
+    path('dashboard/appointments/create/interview/', create_interview_appointment, name='appointment_create_interview'),
+    path('dashboard/appointments/create/one-on-one/', create_one_on_one_appointment, name='appointment_create_one_on_one'),
+
+
+    # Edit, postpone, and status update
+    path('dashboard/appointments/edit/<int:appointment_id>/', edit_appointment, name='appointment_edit'),
+    path('dashboard/appointments/postpone/<int:appointment_id>/', postpone_appointment, name='appointment_postpone'),
+    path('dashboard/appointments/status/<int:appointment_id>/<str:status>/', update_appointment_status, name='appointment_mark_done'),
+
 ]
