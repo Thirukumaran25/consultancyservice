@@ -1,9 +1,12 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Profile,JobApplication,Job,Appointment
+from .models import (Profile,JobApplication,Job,Appointment,
+                     InterviewSlot,MockInterviewFeedback,UserProgress,
+                     Enrollment,Course)
 from django.forms import ModelForm
 from django.core.exceptions import ValidationError
 import re
+from django.utils import timezone
 
 
 class SignupForm(forms.ModelForm):
@@ -159,6 +162,16 @@ class AppointmentForm(forms.ModelForm):
             'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
+    def clean_scheduled_at(self):
+        scheduled_at = self.cleaned_data.get('scheduled_at')
+        if scheduled_at:
+            if scheduled_at <= timezone.now():
+                raise ValidationError("Scheduled time must be in the future.")
+            # Check admin slots
+            slot, created = InterviewSlot.objects.get_or_create(date=scheduled_at.date())
+            if not slot.can_schedule():
+                raise ValidationError("No available slots for this date.")
+        return scheduled_at
 
 class PostponeAppointmentForm(forms.ModelForm):
     class Meta:
@@ -169,10 +182,77 @@ class PostponeAppointmentForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 4}),
         }
     
-    # Override save to set status to POSTPONED
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance.status = 'POSTPONED'
         if commit:
             instance.save()
         return instance
+    
+
+
+class MockInterviewForm(forms.ModelForm):
+    class Meta:
+        model = Appointment
+        fields = ['scheduled_at', 'interview_type', 'target_role', 'notes']
+        widgets = {
+            'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
+            'interview_type': forms.Select(attrs={'class': 'border rounded p-2 w-full'}),
+            'target_role': forms.TextInput(attrs={'class': 'border rounded p-2 w-full', 'placeholder': 'e.g., Software Engineer'}),
+            'notes': forms.Textarea(attrs={'rows': 4, 'class': 'border rounded p-2 w-full'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        profile = self.user.profile
+        if not profile.can_schedule_mock_interview():
+            raise ValidationError("You have exhausted your monthly mock interview quota. Wait for next month or upgrade.")
+        return cleaned_data
+    
+
+class MockInterviewFeedbackForm(forms.ModelForm):
+    class Meta:
+        model = MockInterviewFeedback
+        fields = ['feedback_report', 'improvement_plan']
+
+
+class EnrollmentForm(forms.Form):
+    course_id = forms.IntegerField(widget=forms.HiddenInput())
+
+    def clean(self):
+        cleaned_data = super().clean()
+        course_id = cleaned_data.get('course_id')
+        course = Course.objects.get(id=course_id)
+        profile = self.user.profile  # Assumes user is passed to form
+
+        # Tier verification
+        if course.tier_required == 'PRO_PLUS' and not profile.is_proplus:
+            raise ValidationError("This course requires Pro Plus subscription.")
+        if course.tier_required == 'PRO' and not (profile.is_pro or profile.is_proplus):
+            raise ValidationError("This course requires Pro subscription.")
+
+        # Quota enforcement
+        if course.max_enrollments > 0 and Enrollment.objects.filter(user=self.user, course=course).count() >= course.max_enrollments:
+            raise ValidationError("Enrollment limit reached for this course.")
+
+        return cleaned_data
+
+class ProgressUpdateForm(forms.ModelForm):
+    class Meta:
+        model = UserProgress
+        fields = ['status']
+
+
+
+class CourseForm(forms.ModelForm):
+    class Meta:
+        model = Course
+        fields = ['title', 'description', 'link', 'tier_required', 'has_certificate', 'max_enrollments']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'link': forms.URLInput(attrs={'placeholder': 'https://example.com'}),
+        }

@@ -12,7 +12,12 @@ from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
                     mark_query_resolved,reply_query,payment_success,calendar_events,
                     appointment_list_api,admin_calendar,consultant_dashboard,
                     appointment_list,create_interview_appointment,create_one_on_one_appointment,
-                    edit_appointment,postpone_appointment,update_appointment_status)
+                    edit_appointment,postpone_appointment,update_appointment_status,
+                    schedule_mock_interview,upload_mock_feedback,mark_done_with_feedback,
+                    appointment_view,view_feedback,user_feedbacks,
+                    enroll_course,training_progress,training_dashboard,
+                    admin_course_details,admin_user_progress,sync_progress,
+                    admin_courses,admin_add_course,)
 
 urlpatterns = [
     path('', home, name='home'),
@@ -75,16 +80,29 @@ urlpatterns = [
     path("dashboard/appointments/list/", appointment_list_api,name="appointment_list"),
     path("dashboard/calendar/", admin_calendar, name="admin_calendar"),
     path("dashboard/calendar/events/", calendar_events, name="calendar_events"),
-    
-    
+    path('user/feedbacks/', user_feedbacks, name='user_feedbacks'),
+
+
+    path('dashboard/appointments/view/<int:appointment_id>/', appointment_view, name='appointment_view'),
+    path('dashboard/appointments/<int:appointment_id>/view-feedback/', view_feedback, name='view_feedback'),
     path('dashboard/appointments/', appointment_list, name='appointment_list'),
     path('dashboard/appointments/create/interview/', create_interview_appointment, name='appointment_create_interview'),
     path('dashboard/appointments/create/one-on-one/', create_one_on_one_appointment, name='appointment_create_one_on_one'),
 
-
-    # Edit, postpone, and status update
+    path('schedule-mock-interview/', schedule_mock_interview, name='schedule_mock_interview'),
+    path('dashboard/appointments/<int:appointment_id>/upload-feedback/', upload_mock_feedback, name='upload_mock_feedback'),
+    path('dashboard/appointments/<int:appointment_id>/mark-done/', mark_done_with_feedback, name='mark_done_with_feedback'),
     path('dashboard/appointments/edit/<int:appointment_id>/', edit_appointment, name='appointment_edit'),
     path('dashboard/appointments/postpone/<int:appointment_id>/', postpone_appointment, name='appointment_postpone'),
     path('dashboard/appointments/status/<int:appointment_id>/<str:status>/', update_appointment_status, name='appointment_mark_done'),
 
+    
+    path('dashboard/training/courses/add/', admin_add_course, name='admin_add_course'),
+    path('enroll/<int:course_id>/', enroll_course, name='enroll_course'),
+    path('training/progress/', training_progress, name='training_progress'),
+    path('training/dashboard/', training_dashboard, name='training_dashboard'),
+    path('dashboard/training/courses/', admin_courses, name='admin_courses'),
+    path('dashboard/training/course/<int:course_id>/', admin_course_details, name='admin_course_details'),
+    path('dashboard/training/enrollment/<int:enrollment_id>/', admin_user_progress, name='admin_user_progress'),
+    path('dashboard/training/sync/', sync_progress, name='sync_progress'),
 ]

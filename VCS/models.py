@@ -4,8 +4,8 @@ from decimal import Decimal
 import uuid
 from django.utils import timezone
 from django.db.models import Count
-# Create your models here.
 
+# Create your models here.
 
 class Job(models.Model):
     EXPERIENCE_CHOICES = [
@@ -34,6 +34,7 @@ class Job(models.Model):
 
     saved_by = models.ManyToManyField(User, blank=True, related_name='saved_jobs')
     applied_by = models.ManyToManyField(User, through='JobApplication', related_name='applied_jobs')
+
     class Meta:
         indexes = [
             models.Index(fields=['job_title']),
@@ -41,10 +42,9 @@ class Job(models.Model):
             models.Index(fields=['experience']),
             models.Index(fields=['salary_range']),
         ]
+
     def __str__(self):
         return f"{self.job_title} - {self.company_name}"
-
-
 
 class JobApplication(models.Model):
     STATUS_CHOICES = [
@@ -68,7 +68,28 @@ class JobApplication(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.job.job_title} ({self.status})"
 
+class Course(models.Model):
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    link = models.URLField()
+    tier_required = models.CharField(max_length=20, choices=[('FREE', 'Free'), ('PRO', 'Pro'), ('PRO_PLUS', 'Pro Plus')], default='FREE')
+    has_certificate = models.BooleanField(default=False)
+    max_enrollments = models.PositiveIntegerField(default=0)
 
+    def __str__(self):
+        return self.title
+
+class ProgressStep(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    order = models.PositiveIntegerField()  # For sequencing steps
+    is_webinar = models.BooleanField(default=False)  # For live webinars if added later
+
+class Certificate(models.Model):
+    enrollment = models.OneToOneField('Enrollment', on_delete=models.CASCADE)  # Fixed: Use string reference
+    issued_at = models.DateTimeField(auto_now_add=True)
+    certificate_file = models.FileField(upload_to='certificates/', null=True, blank=True)
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -82,10 +103,34 @@ class Profile(models.Model):
 
     is_pro = models.BooleanField(default=False)
     is_proplus = models.BooleanField(default=False)
+    mock_interviews_this_month = models.PositiveIntegerField(default=0)  # Track used mock interviews this month
+    enrolled_courses = models.ManyToManyField(Course, through='Enrollment', related_name='enrolled_users')
+    certificates_earned = models.ManyToManyField(Certificate, related_name='earned_by')
+
+    def mock_interview_limit(self):
+        if self.is_proplus:
+            return 4
+        return 0
+
+    def mock_interviews_remaining(self):
+        limit = self.mock_interview_limit()
+        return max(0, limit - self.mock_interviews_this_month)
+
+    def can_schedule_mock_interview(self):
+        return self.mock_interviews_remaining() > 0
+
+    def increment_mock_interviews(self):
+        self.mock_interviews_this_month += 1
+        self.save()
+
+    def decrement_mock_interviews(self):
+        if self.mock_interviews_this_month > 0:
+            self.mock_interviews_this_month -= 1
+            self.save()
 
     def application_limit(self):
         if self.is_proplus:
-            return None      
+            return None
         if self.is_pro:
             return 100
         return 20
@@ -103,11 +148,57 @@ class Profile(models.Model):
         if limit is None:
             return True
         return self.applications_this_month() < limit
-    
+
     def __str__(self):
         return self.user.username
 
+class Enrollment(models.Model):
+    STAGE_CHOICES = [
+        ('ENROLLED', 'Enrolled'),
+        ('STARTED', 'Started Course'),
+        ('EXAMS', 'Exams'),
+        ('INTERVIEW', 'Interview'),
+        ('CERTIFIED', 'Certified'),
+    ]
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    enrolled_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[('ENROLLED', 'Enrolled'), ('COMPLETED', 'Completed')], default='ENROLLED')
+    current_stage = models.CharField(max_length=20, choices=STAGE_CHOICES, default='ENROLLED')  # New field
 
+    class Meta:
+        unique_together = ('profile', 'course')
+
+class UserProgress(models.Model):
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
+    step = models.ForeignKey(ProgressStep, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=[('NOT_STARTED', 'Not Started'), ('IN_PROGRESS', 'In Progress'), ('COMPLETED', 'Completed')], default='NOT_STARTED')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('enrollment', 'step')
+
+class InterviewSlot(models.Model):
+    date = models.DateField(unique=True)
+    max_slots = models.PositiveIntegerField(default=5)
+    used_slots = models.PositiveIntegerField(default=0)
+
+    def available_slots(self):
+        return max(0, self.max_slots - self.used_slots)
+
+    def can_schedule(self):
+        return self.available_slots() > 0
+
+    def increment_slots(self):
+        if self.can_schedule():
+            self.used_slots += 1
+            self.save()
+
+    def decrement_slots(self):
+        if self.used_slots > 0:
+            self.used_slots -= 1
+            self.save()
 
 class Subscription(models.Model):
     PLAN_CHOICES = (
@@ -148,7 +239,6 @@ class Subscription(models.Model):
         elif self.plan_name == "Pro Plus":
             return Decimal("29999.00")
         return Decimal("0.00")
-    
 
 class Invoice(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -167,17 +257,6 @@ class Invoice(models.Model):
     def __str__(self):
         return self.invoice_number
 
-
-
-class Course(models.Model):
-    title = models.CharField(max_length=200)
-    description = models.TextField()
-    link = models.URLField()
-
-    def __str__(self):
-        return self.title
-
-
 class Appointment(models.Model):
     TYPE_CHOICES = [
         ('INTERVIEW', 'Interview'),
@@ -190,7 +269,7 @@ class Appointment(models.Model):
         ('POSTPONED', 'Postponed'),
     ]
 
-    application = models.ForeignKey(JobApplication, on_delete=models.CASCADE)
+    application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, null=True, blank=True)
     consultant = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -200,15 +279,34 @@ class Appointment(models.Model):
     )
     appointment_type = models.CharField(max_length=20,
                                         choices=TYPE_CHOICES,
-                                        default='INTERVIEW' )
+                                        default='INTERVIEW')
     scheduled_at = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED')
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
+    interview_type = models.CharField(
+        max_length=20,
+        choices=[('BEHAVIORAL', 'Behavioral'), ('TECHNICAL', 'Technical'), ('CASE_STUDY', 'Case Study')],
+        blank=True,
+        null=True
+    )
+    target_role = models.CharField(max_length=100, blank=True)
+    video_link = models.URLField(blank=True)
+    is_mock_interview = models.BooleanField(default=False)
+    waitlist = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.application.user} - {self.appointment_type}"
 
+class MockInterviewFeedback(models.Model):
+    appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE, related_name='feedback')
+    feedback_report = models.FileField(upload_to='feedback_reports/', blank=True, null=True)  # Uploaded PDF/report
+    improvement_plan = models.TextField(blank=True)  # Text-based plan
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)  # Consultant who uploads
+
+    def __str__(self):
+        return f"Feedback for {self.appointment}"
 
 class CalendarEvent(models.Model):
     title = models.CharField(max_length=255)
@@ -225,7 +323,6 @@ class CalendarEvent(models.Model):
     def __str__(self):
         return self.title
 
-
 class Interaction(models.Model):
     application = models.ForeignKey(JobApplication, on_delete=models.CASCADE)
     admin = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -234,7 +331,6 @@ class Interaction(models.Model):
 
     def __str__(self):
         return f"{self.application.user} - {self.created_at}"
-
 
 class SupportQuery(models.Model):
     PRIORITY = [
@@ -249,9 +345,8 @@ class SupportQuery(models.Model):
     message = models.TextField()
     priority = models.CharField(max_length=20, choices=PRIORITY, default='LOW')
     resolved = models.BooleanField(default=False)
-    reply = models.TextField(blank=True, null=True) 
+    reply = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -261,7 +356,6 @@ class Notification(models.Model):
 
     def __str__(self):
         return self.message
-
 
 class ChatQuestionAnswer(models.Model):
     CATEGORY_CHOICES = [
@@ -280,7 +374,6 @@ class ChatQuestionAnswer(models.Model):
 
     def __str__(self):
         return f"[{self.category}] {self.question}"
-    
 
 class CandidateChat(models.Model):
     candidate = models.ForeignKey(User, on_delete=models.CASCADE)

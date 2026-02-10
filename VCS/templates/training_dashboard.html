@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Boxicons -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                Training Dashboard
+            </h1>
+            <p class="mt-1 text-slate-500">
+                Your learning journey at a glance
+            </p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl shadow-xl p-6 text-center">
+            <i class='bx bx-book text-4xl text-indigo-600 mb-2'></i>
+            <h3 class="text-2xl font-bold">{{ enrollments|length }}</h3>
+            <p class="text-slate-600">Enrolled Courses</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-6 text-center">
+            <i class='bx bx-check-circle text-4xl text-green-600 mb-2'></i>
+            <h3 class="text-2xl font-bold">{{ enrollments|length|add:certificates|length }}</h3>
+            <p class="text-slate-600">Completed Courses</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-6 text-center">
+            <i class='bx bx-award text-4xl text-yellow-600 mb-2'></i>
+            <h3 class="text-2xl font-bold">{{ certificates|length }}</h3>
+            <p class="text-slate-600">Certificates Earned</p>
+        </div>
+    </div>
+
+    <!-- Enrolled Courses -->
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold mb-4">Your Courses</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for enrollment in enrollments %}
+            <div class="bg-white rounded-2xl shadow-xl p-6">
+                <h3 class="text-lg font-semibold">{{ enrollment.course.title }}</h3>
+                <p class="text-slate-600 mt-2">{{ enrollment.course.description|truncatechars:100 }}</p>
+                <p class="mt-2 text-sm text-slate-500">Status: {{ enrollment.status }}</p>
+                <a href="{% url 'training_progress' %}" class="mt-4 inline-block text-indigo-600 hover:underline">View Progress</a>
+            </div>
+            {% empty %}
+            <p class="text-slate-500">No enrolled courses.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Certificates -->
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold mb-4">Certificates</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for cert in certificates %}
+            <div class="bg-white rounded-2xl shadow-xl p-6">
+                <h3 class="text-lg font-semibold">{{ cert.enrollment.course.title }}</h3>
+                <p class="text-slate-600 mt-2">Issued: {{ cert.issued_at|date:"M d, Y" }}</p>
+                {% if cert.certificate_file %}
+                <a href="{{ cert.certificate_file.url }}" class="mt-4 inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Download</a>
+                {% else %}
+                <p class="mt-4 text-slate-500">Certificate file not available yet.</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="text-slate-500">No certificates earned yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Available Courses -->
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold mb-4">Available Courses</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for course in available_courses %}
+            <div class="bg-white rounded-2xl shadow-xl p-6">
+                <h3 class="text-lg font-semibold">{{ course.title }}</h3>
+                <p class="text-slate-600 mt-2">{{ course.description|truncatechars:100 }}</p>
+                <p class="mt-2 text-sm text-slate-500">Tier: {{ course.tier_required|title }}</p>
+                <a href="{% url 'enroll_course' course.id %}" class="mt-4 inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Enroll</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

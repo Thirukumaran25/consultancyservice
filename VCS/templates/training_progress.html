@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Boxicons -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                Training Progress
+            </h1>
+            <p class="mt-1 text-slate-500">
+                Track your enrolled courses and completion status
+            </p>
+        </div>
+        <a href="{% url 'training_dashboard' %}"
+           class="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+            <i class='bx bx-dashboard text-xl'></i>
+            Training Dashboard
+        </a>
+    </div>
+
+    <!-- Enrolled Courses -->
+    <div class="mt-8 space-y-6">
+        {% for enrollment in enrollments %}
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold text-slate-900">{{ enrollment.course.title }}</h3>
+                <span class="px-3 py-1 rounded-full text-sm font-medium
+                             {% if enrollment.status == 'COMPLETED' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                    {{ enrollment.status }}
+                </span>
+            </div>
+            <p class="text-slate-600 mb-4">{{ enrollment.course.description }}</p>
+
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <h4 class="text-sm font-medium text-slate-700 mb-2">Progress</h4>
+                <div class="flex items-center space-x-2">
+                    {% for stage, label in enrollment.STAGE_CHOICES %}
+                    <div class="flex-1 text-center">
+                        <div class="w-full bg-slate-200 rounded-full h-2 mb-1">
+                            <div class="h-2 rounded-full transition-all duration-500
+                                        {% if forloop.counter <= enrollment.get_current_stage_display|length %}bg-indigo-600{% else %}bg-slate-300{% endif %}"></div>
+                        </div>
+                        <span class="text-xs text-slate-600">{{ label }}</span>
+                    </div>
+                    {% if not forloop.last %}
+                    <i class='bx bx-chevron-right text-slate-400'></i>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Current Stage: {{ enrollment.get_current_stage_display }}</p>
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="space-y-3">
+                {% for progress in enrollment.userprogress_set.all %}
+                <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
+                    <div class="flex-shrink-0">
+                        {% if progress.status == 'COMPLETED' %}
+                        <i class='bx bx-check-circle text-green-600 text-xl'></i>
+                        {% elif progress.status == 'IN_PROGRESS' %}
+                        <i class='bx bx-time text-yellow-600 text-xl'></i>
+                        {% else %}
+                        <i class='bx bx-circle text-slate-400 text-xl'></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-medium text-slate-900">{{ progress.step.title }}</h4>
+                        <p class="text-sm text-slate-600">{{ progress.step.description }}</p>
+                    </div>
+                    <span class="text-sm font-medium text-slate-500">{{ progress.status|title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Certificate if Completed -->
+            {% if enrollment.status == 'COMPLETED' and enrollment.certificate %}
+            <div class="mt-4 p-4 bg-green-50 rounded-lg">
+                <p class="text-green-700 font-medium">Certificate Earned!</p>
+                <a href="{{ enrollment.certificate.certificate_file.url }}" class="text-indigo-600 hover:underline">Download Certificate</a>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-2xl shadow-xl p-10 text-center">
+            <i class='bx bx-book text-6xl text-slate-400 mb-4'></i>
+            <h3 class="text-xl font-semibold text-slate-900">No Enrolled Courses</h3>
+            <p class="text-slate-600 mt-2">Enroll in courses to start tracking progress.</p>
+            <a href="{% url 'courses' %}" class="mt-4 inline-block bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
+                Browse Courses
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

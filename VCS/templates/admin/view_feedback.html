@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-6 py-8">
+    <h1 class="text-3xl font-bold mb-6">Mock Interview Feedback</h1>
+    
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-4">Appointment Details</h2>
+        <p><strong>Candidate:</strong> {{ appointment.application.user.username }}</p>
+        <p><strong>Interview Type:</strong> {{ appointment.interview_type }}</p>
+        <p><strong>Target Role:</strong> {{ appointment.target_role }}</p>
+        <p><strong>Date & Time:</strong> {{ appointment.scheduled_at }}</p>
+        
+        <h2 class="text-xl font-semibold mt-6 mb-4">Feedback</h2>
+        {% if feedback.feedback_report %}
+        <p><strong>Report:</strong> <a href="{{ feedback.feedback_report.url }}" target="_blank" class="text-blue-600">Download PDF</a></p>
+        {% endif %}
+        <p><strong>Improvement Plan:</strong> {{ feedback.improvement_plan }}</p>
+        <p><strong>Uploaded At:</strong> {{ feedback.uploaded_at }}</p>
+    </div>
+    
+    <a href="{% url 'appointment_list' %}?appt_type=INTERVIEW" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded">Back to Appointments</a>
+</div>
+{% endblock %}

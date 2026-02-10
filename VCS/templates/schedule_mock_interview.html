@@ -1,0 +1,13 @@
+<!-- Basic form template -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow">
+  <h2 class="text-xl font-bold mb-4">Schedule Mock Interview</h2>
+  <p>Remaining Quota: {{ remaining_quota }}/4</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Schedule</button>
+  </form>
+</div>
+{% endblock %}

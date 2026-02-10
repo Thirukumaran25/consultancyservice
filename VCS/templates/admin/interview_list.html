@@ -54,6 +54,15 @@
             <option value="POSTPONED">Postponed</option>
         </select>
 
+        <!-- New filter for mock interviews -->
+        <select id="mockFilter"
+                class="w-full lg:w-1/4 px-4 py-3 rounded-xl border border-slate-200
+                       focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm">
+            <option value="">All Types</option>
+            <option value="true">Mock Interviews</option>
+            <option value="false">Regular Interviews</option>
+        </select>
+
         <button id="clearFilters"
                 class="inline-flex items-center gap-2 px-5 py-3 rounded-xl
                        bg-slate-100 hover:bg-slate-200 transition font-medium">
@@ -77,15 +86,13 @@
             <tbody id="appointmentTable" class="divide-y divide-slate-100">
                 {% for appt in appointments %}
                 <tr class="appointment-row hover:bg-slate-50 transition"
-                    data-status="{{ appt.status }}">
+                    data-status="{{ appt.status }}" data-mock="{{ appt.is_mock_interview }}">
                     <td class="px-6 py-4 font-medium text-slate-900">
                         {{ appt.application.user.username }}
                     </td>
-
                     <td class="px-6 py-4 text-slate-600">
                         {{ appt.scheduled_at }}
                     </td>
-
                     <td class="px-6 py-4">
                         {% if appt.status == 'SCHEDULED' %}
                         <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full
@@ -104,8 +111,8 @@
                         </span>
                         {% endif %}
                     </td>
-
                     <td class="px-6 py-4 text-right space-x-4">
+                        {% if appt.status != 'DONE' %}
                         <button onclick="openEditModal({{ appt.id }})"
                                 class="text-blue-600 hover:text-blue-800 font-medium">
                             Edit
@@ -114,15 +121,26 @@
                                 class="text-yellow-600 hover:text-yellow-800 font-medium">
                             Postpone
                         </button>
-                        <a href="{% url 'appointment_mark_done' appt.id 'DONE' %}"
-                           class="text-emerald-600 hover:text-emerald-800 font-medium">
+                        <button onclick="markAsDone({{ appt.id }})"  
+                                class="text-emerald-600 hover:text-emerald-800 font-medium">
                             Done
-                        </a>
+                        </button>
+                        {% endif %}
+                        {% if appt.status == 'DONE' %}
+                        <button onclick="openViewModal({{ appt.id }})"
+                                class="text-gray-600 hover:text-gray-800 font-medium">
+                            View
+                        </button>
+                        <button onclick="openFeedbackModal({{ appt.id }})"
+                                class="text-purple-600 hover:text-purple-800 font-medium">
+                            Upload Feedback
+                        </button>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="px-6 py-10 text-center text-slate-500">
+                    <td colspan="6" class="px-6 py-10 text-center text-slate-500">
                         No interviews found
                     </td>
                 </tr>
@@ -132,7 +150,7 @@
     </div>
 </div>
 
-<!-- Modal -->
+<!-- Existing Modal for Create/Edit/Postpone -->
 <div id="appointmentModal"
      class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
             flex items-center justify-center">
@@ -148,6 +166,8 @@
 
         <form id="appointmentForm" class="p-6 space-y-5 bg-slate-50">
             {% csrf_token %}
+
+            <div id="formErrors" class="text-red-600"></div>  <!-- For AJAX errors -->
 
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1">
@@ -193,15 +213,67 @@
     </div>
 </div>
 
+<!-- New Modal for Feedback Upload -->
+<div id="feedbackModal"
+     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
+            flex items-center justify-center">
+    <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl transform scale-95 transition">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+            <h3 class="text-white font-bold text-lg">Upload Interview Feedback</h3>  <!-- Updated title -->
+            <button onclick="closeFeedbackModal()" class="text-white text-2xl">&times;</button>
+        </div>
+        <form id="feedbackForm" method="post" enctype="multipart/form-data" class="p-6 space-y-5 bg-slate-50">
+            {% csrf_token %}
+            <input type="hidden" id="feedbackAppointmentId" name="appointment_id">
+            <div id="feedbackErrors" class="text-red-600"></div>  <!-- For errors -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Feedback Report (PDF)</label>
+                <input type="file" name="feedback_report" accept=".pdf" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Improvement Plan</label>
+                <textarea name="improvement_plan" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500"></textarea>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow hover:shadow-lg transition">
+                    Upload
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- New Modal for View Interview Details -->
+<div id="viewModal"
+     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
+            flex items-center justify-center">
+    <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl transform scale-95 transition">
+        <div class="bg-gradient-to-r from-gray-600 to-slate-600 px-6 py-4 flex items-center justify-between">
+            <h3 class="text-white font-bold text-lg">Interview Details</h3>
+            <button onclick="closeViewModal()" class="text-white text-2xl">&times;</button>
+        </div>
+        <div id="viewContent" class="p-6 space-y-5 bg-slate-50">
+            <!-- Content will be populated via JS -->
+        </div>
+    </div>
+</div>
+
 <!-- JS -->
 <script>
 const modal = document.getElementById('appointmentModal');
 const form = document.getElementById('appointmentForm');
+const feedbackModal = document.getElementById('feedbackModal');
+const feedbackForm = document.getElementById('feedbackForm');
+// REMOVED: doneModal and doneForm references
+
+const viewModal = document.getElementById('viewModal');
 
 function openCreateModal(){
     modal.classList.remove('hidden');
     form.action = "{% url 'appointment_create_interview' %}";
     document.getElementById('modalTitle').innerText = "Create Interview";
+    form.reset();
+    document.getElementById('formErrors').innerHTML = '';
 }
 
 function openEditModal(id){
@@ -220,27 +292,212 @@ function closeModal(){
     modal.classList.add('hidden');
 }
 
+function openFeedbackModal(id){
+    feedbackModal.classList.remove('hidden');
+    document.getElementById('feedbackAppointmentId').value = id;
+    document.getElementById('feedbackForm').action = "{% url 'upload_mock_feedback' 0 %}".replace('0', id);
+    feedbackForm.reset();
+    document.getElementById('feedbackErrors').innerHTML = '';
+}
+
+function closeFeedbackModal(){
+    feedbackModal.classList.add('hidden');
+}
+
+// REMOVED: openDoneModal and closeDoneModal functions
+
+function openViewModal(id){
+    viewModal.classList.remove('hidden');
+    // Fetch and populate details
+    fetch("{% url 'appointment_view' 0 %}".replace('0', id), {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+                } else {
+            throw new Error('Expected JSON response, but got HTML or other content. Check permissions or appointment ID.');
+        }
+    })
+    .then(data => {
+        document.getElementById('viewContent').innerHTML = `
+            <p><strong>Candidate:</strong> ${data.candidate}</p>
+            <p><strong>Interview Type:</strong> ${data.interview_type || 'N/A'}</p>
+            <p><strong>Target Role:</strong> ${data.target_role || 'N/A'}</p>
+            <p><strong>Date & Time:</strong> ${data.scheduled_at}</p>
+            <p><strong>Status:</strong> ${data.status}</p>
+            <p><strong>Notes:</strong> ${data.notes || 'N/A'}</p>
+            ${data.feedback_notes ? `<p><strong>Feedback Notes:</strong> ${data.feedback_notes}</p>` : ''}
+        `;
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        document.getElementById('viewContent').innerHTML = `<p>Error loading details: ${error.message}. Please check your permissions or try again.</p>`;
+    });
+}
+
+function closeViewModal(){
+    viewModal.classList.add('hidden');
+}
+
+// Handle appointment form submit via AJAX with error handling
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(form);
+    formData.append('X-Requested-With', 'XMLHttpRequest');
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            closeModal();
+            location.reload();
+        } else {
+            let errors = '<ul>';
+            for (let field in data.errors) {
+                errors += `<li>${field}: ${data.errors[field]}</li>`;
+            }
+            errors += '</ul>';
+            document.getElementById('formErrors').innerHTML = errors;
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        document.getElementById('formErrors').innerHTML = `<p>Error: ${error.message}. Check console for details.</p>`;
+    });
+});
+
+// Handle feedback form submit via AJAX with error handling
+feedbackForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(feedbackForm);
+    formData.append('X-Requested-With', 'XMLHttpRequest');
+
+    fetch(feedbackForm.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            throw new Error('Expected JSON response, but got HTML or other content.');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            closeFeedbackModal();
+            // Redirect to the feedback view page
+            window.location.href = data.redirect_url;
+        } else {
+            let errors = '<ul>';
+            for (let field in data.errors) {
+                errors += `<li>${field}: ${data.errors[field]}</li>`;
+            }
+            errors += '</ul>';
+            document.getElementById('feedbackErrors').innerHTML = errors;
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        document.getElementById('feedbackErrors').innerHTML = `<p>Error: ${error.message}. Check console for details.</p>`;
+    });
+});
+
 // Filters
 const searchInput = document.getElementById('searchInput');
 const statusFilter = document.getElementById('statusFilter');
+const mockFilter = document.getElementById('mockFilter');
 
 function filterRows(){
     document.querySelectorAll('.appointment-row').forEach(row => {
         const name = row.children[0].innerText.toLowerCase();
         const status = row.dataset.status;
+        const isMock = row.dataset.mock === 'true';
         const matchName = name.includes(searchInput.value.toLowerCase());
         const matchStatus = !statusFilter.value || status === statusFilter.value;
-        row.style.display = (matchName && matchStatus) ? '' : 'none';
+        const matchMock = !mockFilter.value || (mockFilter.value === 'true' && isMock) || (mockFilter.value === 'false' && !isMock);
+        row.style.display = (matchName && matchStatus && matchMock) ? '' : 'none';
     });
 }
 
 searchInput.addEventListener('input', filterRows);
 statusFilter.addEventListener('change', filterRows);
+mockFilter.addEventListener('change', filterRows);
 document.getElementById('clearFilters').onclick = () => {
     searchInput.value = '';
     statusFilter.value = '';
+    mockFilter.value = '';
     filterRows();
 };
+
+// New function for direct "Mark as Done" (no modal)
+function markAsDone(id) {
+    fetch("{% url 'mark_done_with_feedback' 0 %}".replace('0', id), {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();  // Reload to update the table and show "Upload Feedback"
+        } else {
+            alert('Failed to mark as done. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        alert('Something went wrong. Please try again.');
+    });
+}
 </script>
+
+<style>
+  .pro-card {
+    @apply p-4 rounded-xl text-center hover:scale-105 transition font-medium;
+  }
+</style>
 
 {% endblock %}

@@ -106,6 +106,7 @@
                     </td>
 
                     <td class="px-6 py-4 text-right space-x-4">
+                        {% if appt.status != 'DONE' %}
                         <button onclick="openEditModal({{ appt.id }})"
                                 class="text-blue-600 hover:text-blue-800 font-medium">
                             Edit
@@ -114,10 +115,17 @@
                                 class="text-yellow-600 hover:text-yellow-800 font-medium">
                             Postpone
                         </button>
-                        <a href="{% url 'appointment_mark_done' appt.id 'DONE' %}"
-                           class="text-emerald-600 hover:text-emerald-800 font-medium">
+                        <button onclick="markAsDone({{ appt.id }})"
+                                class="text-emerald-600 hover:text-emerald-800 font-medium">
                             Done
-                        </a>
+                        </button>
+                        {% endif %}
+                        {% if appt.status == 'DONE' %}
+                        <button onclick="openViewModal({{ appt.id }})"
+                                class="text-gray-600 hover:text-gray-800 font-medium">
+                            View
+                        </button>
+                        {% endif %}
                     </td>
                 </tr>
             {% empty %}
@@ -174,10 +182,26 @@
     </div>
 </div>
 
+<!-- New Modal for View Interview Details -->
+<div id="viewModal"
+     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
+            flex items-center justify-center">
+    <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl transform scale-95 transition">
+        <div class="bg-gradient-to-r from-gray-600 to-slate-600 px-6 py-4 flex items-center justify-between">
+            <h3 class="text-white font-bold text-lg">Session Details</h3>
+            <button onclick="closeViewModal()" class="text-white text-2xl">&times;</button>
+        </div>
+        <div id="viewContent" class="p-6 space-y-5 bg-slate-50">
+            <!-- Content will be populated via JS -->
+        </div>
+    </div>
+</div>
+
 <!-- JS -->
 <script>
 const modal = document.getElementById('appointmentModal');
 const form = document.getElementById('appointmentForm');
+const viewModal = document.getElementById('viewModal');
 
 function openCreateModal(){
     modal.classList.remove('hidden');
@@ -201,6 +225,86 @@ function closeModal(){
     modal.classList.add('hidden');
 }
 
+function openViewModal(id){
+    viewModal.classList.remove('hidden');
+    console.log('Opening view modal for ID:', id);  // Debug log
+    // Fetch and populate details
+    fetch("{% url 'appointment_view' 0 %}".replace('0', id), {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);  // Debug log
+        console.log('Response headers:', response.headers.get('content-type'));  // Debug log
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('Response text (HTML):', text);  // Log the HTML response
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            throw new Error('Expected JSON response, but got HTML or other content. Check permissions or appointment ID.');
+        }
+    })
+    .then(data => {
+        console.log('Received data:', data);  // Debug log
+        document.getElementById('viewContent').innerHTML = `
+            <p><strong>Candidate:</strong> ${data.candidate}</p>
+            <p><strong>Date & Time:</strong> ${data.scheduled_at}</p>
+            <p><strong>Status:</strong> ${data.status}</p>
+            <p><strong>Notes:</strong> ${data.notes || 'N/A'}</p>
+        `;
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        document.getElementById('viewContent').innerHTML = `<p>Error loading details: ${error.message}. Please check your permissions or try again.</p>`;
+    });
+}
+
+function closeViewModal(){
+    viewModal.classList.add('hidden');
+}
+
+// Handle appointment form submit via AJAX with error handling
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    closeModal();  // Close modal immediately on submit
+    const formData = new FormData(form);
+    formData.append('X-Requested-With', 'XMLHttpRequest');
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();  // Reload to update the table on success
+        } else {
+            console.error('Form errors:', data.errors);  // Log errors to console instead of alert
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);  // Log error to console instead of alert
+    });
+});
+
 // Filters
 const searchInput = document.getElementById('searchInput');
 const statusFilter = document.getElementById('statusFilter');
@@ -223,6 +327,35 @@ document.getElementById('clearFilters').onclick = () => {
     statusFilter.value = '';
     filterRows();
 };
+
+// New function for direct "Mark as Done" (no modal)
+function markAsDone(id) {
+    fetch("{% url 'mark_done_with_feedback' 0 %}".replace('0', id), {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`Server error: ${response.status} - ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();  // Reload to update the table and show "View"
+        } else {
+            console.error('Failed to mark as done:', data);  // Log to console instead of alert
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);  // Log to console instead of alert
+    });
+}
 </script>
 
 {% endblock %}

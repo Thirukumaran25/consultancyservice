@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-6 py-8">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">
+            Upload Mock Interview Feedback
+        </h1>
+        <p class="text-slate-500 mt-1">
+            Candidate: <b>{{ appointment.application.user.username }}</b><br>
+            Scheduled at: {{ appointment.scheduled_at }}
+        </p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-xl p-6">
+        <form method="POST" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="text-red-600 text-sm">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <!-- Feedback Report -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                    Feedback Report (PDF)
+                </label>
+                {{ form.feedback_report }}
+                {% if form.feedback_report.errors %}
+                    <p class="text-red-600 text-sm mt-1">
+                        {{ form.feedback_report.errors }}
+                    </p>
+                {% endif %}
+            </div>
+
+            <!-- Improvement Plan -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                    Improvement Plan
+                </label>
+                {{ form.improvement_plan }}
+                {% if form.improvement_plan.errors %}
+                    <p class="text-red-600 text-sm mt-1">
+                        {{ form.improvement_plan.errors }}
+                    </p>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{% url 'appointment_list' appt_type='INTERVIEW' %}"
+                   class="px-5 py-2 rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300 transition">
+                    Cancel
+                </a>
+
+                <button type="submit"
+                        class="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600
+                               text-white font-semibold shadow hover:shadow-lg transition">
+                    Upload Feedback
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

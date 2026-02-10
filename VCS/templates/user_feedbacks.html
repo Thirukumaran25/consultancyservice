@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<a href="{% url 'profile' %}" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded">Back to Profile</a>
+<div class="max-w-4xl mx-auto px-6 py-8">
+    <h1 class="text-3xl font-bold mb-6">My Interview Feedback</h1>
+    
+    {% for appt in appointments %}
+        {% if appt.status == 'DONE' and appt.notes %}
+            <div class="bg-white p-6 rounded-lg shadow mb-6">
+                <h2 class="text-xl font-semibold mb-4">
+                    {% if appt.is_mock_interview %}Mock Interview{% else %}General Interview{% endif %} - {{ appt.scheduled_at|date:"M d, Y H:i" }}
+                </h2>
+                <p><strong>Type:</strong> {% if appt.is_mock_interview %}Mock Interview{% else %}General Interview{% endif %}</p>
+                <p><strong>Date:</strong> {{ appt.scheduled_at }}</p>
+                {% if appt.is_mock_interview and appt.feedback and appt.feedback.improvement_plan %}  
+                    <p><strong>Improvement Plan:</strong> {{ appt.feedback.improvement_plan }}</p>
+                    {% if appt.feedback.feedback_report %}
+                        <a href="{{ appt.feedback.feedback_report.url }}" target="_blank" class="text-blue-600 underline">Download Report</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+    
+    {% if not appointments %}
+        <p class="text-gray-500 text-center">No feedback available yet.</p>
+    {% endif %}
+    
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Boxicons -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="max-w-4xl mx-auto px-6 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                Progress for {{ enrollment.user.username }}
+            </h1>
+            <p class="mt-1 text-slate-500">
+                Course: {{ enrollment.course.title }}
+            </p>
+        </div>
+        <a href="{% url 'admin_course_details' enrollment.course.id %}"
+           class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition">
+            <i class='bx bx-arrow-back'></i>
+            Back to Course
+        </a>
+    </div>
+
+    <!-- Progress Form -->
+    <div class="mt-8 bg-white rounded-2xl shadow-xl p-6">
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                {% for progress in progresses %}
+                <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-slate-900">{{ progress.step.title }}</h4>
+                        <p class="text-sm text-slate-600">{{ progress.step.description }}</p>
+                    </div>
+                    <select name="status_{{ progress.id }}" class="px-3 py-2 border rounded-lg">
+                        <option value="NOT_STARTED" {% if progress.status == 'NOT_STARTED' %}selected{% endif %}>Not Started</option>
+                        <option value="IN_PROGRESS" {% if progress.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                        <option value="COMPLETED" {% if progress.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
+                    Update Progress
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-6">
+            <label for="current_stage" class="block text-sm font-medium text-slate-700">Update Current Stage</label>
+            <select name="current_stage" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                {% for value, label in enrollment.STAGE_CHOICES %}
+                <option value="{{ value }}" {% if enrollment.current_stage == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

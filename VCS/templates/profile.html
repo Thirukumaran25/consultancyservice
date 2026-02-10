@@ -164,7 +164,7 @@
     </span>
   </div>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">  <!-- 4 columns -->
 
     <!-- Card 1 -->
     <a href="{% url 'subscription' %}"
@@ -222,6 +222,46 @@
       <p class="text-center text-gray-500 text-sm mt-1">Upskill yourself</p>
     </a>
 
+    <!-- Card 5: Interview Feedback (Now a Link to the Page) -->
+    <a href="{% url 'user_feedbacks' %}"
+       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+
+      <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3 mx-auto">
+        <i class="bx bx-message-dots text-2xl"></i>
+      </div>
+
+      <h4 class="text-center font-semibold text-gray-800">Interview Feedback</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">View all feedback</p>
+    </a>
+
+    <!-- Card 6: Schedule Mock Interview (Clickable to Open Modal, Pro Plus Only) -->
+    {% if profile.is_proplus %}
+    <button onclick="openMockModal()"
+            class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1 w-full">
+
+      <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-600 mb-3 mx-auto">
+        <i class="bx bx-video text-2xl"></i>
+      </div>
+
+      <h4 class="text-center font-semibold text-gray-800">Mock Interview</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">{{ profile.mock_interviews_remaining }}/4 slots left</p>
+    </button>
+    {% endif %}
+
+    <!-- NEW: Training Progress Box (Pro Plus Only) -->
+    {% if profile.is_proplus %}
+    <a href="{% url 'training_progress' %}" 
+       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+
+      <div class="flex items-center justify-center w-12 h-12 rounded-full bg-orange-100 text-orange-600 mb-3 mx-auto">
+        <i class="bx bx-trending-up text-2xl"></i>
+      </div>
+
+      <h4 class="text-center font-semibold text-gray-800">Training Progress</h4>
+      <p class="text-center text-gray-500 text-sm mt-1">Track enrolled courses</p>
+    </a>
+    {% endif %}
+
   </div>
 </div>
 
@@ -232,6 +272,7 @@
 </div>
 
 
+<!-- Existing Modal for Edit Profile -->
 <div id="profileModal"
      class="fixed inset-0 z-50 hidden bg-black/50 flex justify-center items-center p-4">
 
@@ -241,8 +282,7 @@
       <h2 class="text-lg sm:text-xl font-semibold">Edit Profile</h2>
       <button onclick="closeModal()" class="text-red-500 text-2xl leading-none">&times;</button>
     </div>
-
-    <form method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mt-3">
+          <form method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mt-3">
       {% csrf_token %}
       {{ form.as_p }}
 
@@ -260,6 +300,47 @@
   </div>
 </div>
 
+
+
+<!-- New Modal for Mock Interview Scheduling -->
+<div id="mockModal"
+     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
+            flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl">
+        <div class="bg-gradient-to-r from-red-600 to-pink-600 px-6 py-4 flex items-center justify-between">
+            <h3 class="text-white font-bold text-lg">Schedule Mock Interview</h3>
+            <button onclick="closeMockModal()" class="text-white text-2xl">&times;</button>
+        </div>
+        <form id="mockInterviewForm" class="p-6 space-y-4">
+            {% csrf_token %}
+                        <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Interview Type</label>
+                <select name="interview_type" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
+                    <option value="BEHAVIORAL">Behavioral</option>
+                    <option value="TECHNICAL">Technical</option>
+                    <option value="CASE_STUDY">Case Study</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Target Role</label>
+                <input type="text" name="target_role" placeholder="e.g., Software Engineer" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Date & Time</label>
+                <input type="datetime-local" name="scheduled_at" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
+                <textarea name="notes" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+            <div id="mockErrors" class="text-red-600"></div>
+            <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold shadow hover:shadow-lg transition">
+                Schedule Interview
+            </button>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Script -->
 <script>
 function openModal() {
@@ -269,6 +350,55 @@ function openModal() {
 function closeModal() {
   document.getElementById("profileModal").classList.add("hidden");
 }
+
+function openMockModal() {
+  document.getElementById("mockModal").classList.remove("hidden");
+  document.getElementById("mockModal").classList.add("flex");
+}
+function closeMockModal() {
+  document.getElementById("mockModal").classList.add("hidden");
+}
+
+// Handle Mock Interview Form Submit via AJAX (UPDATED)
+const mockForm = document.getElementById('mockInterviewForm');
+if (mockForm) {
+  mockForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // ✅ Close modal immediately on click
+    closeMockModal();
+
+    const formData = new FormData(mockForm);
+
+    fetch("{% url 'schedule_mock_interview' %}", {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Mock interview scheduled successfully!');
+        location.reload(); // update slots
+      } 
+      else if (data.error && data.error.toLowerCase().includes('slot')) {
+        // ✅ Slot full case
+        alert('Your mock interview slots are already full.');
+      } 
+      else {
+        alert(data.error || 'Scheduling failed. Please try again.');
+      }
+    })
+    .catch(error => {
+      console.error('Fetch error:', error);
+      alert('Something went wrong. Please try again.');
+    });
+  });
+}
+
 </script>
 
 <style>

@@ -4,21 +4,33 @@
 <!-- Boxicons -->
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 
+<a href="{% url 'admin_dashboard' %}"
+               class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition">
+                <i class='bx bx-arrow-back'></i>
+                Back to Dashboard
+            </a>
 <div class="max-w-7xl mx-auto px-6 py-8">
 
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-                Course Catalog
+                All Courses
             </h1>
             <p class="mt-1 text-slate-500">
-                Upskill with our training programs
+                Manage training courses and view enrollments
             </p>
+        </div>
+        <div class="flex flex-wrap gap-4"> 
+            <a href="{% url 'admin_add_course' %}"
+               class="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
+                <i class='bx bx-plus text-xl'></i>
+                Add Course
+            </a>
         </div>
     </div>
 
-    <!-- Courses Grid -->
+    <!-- Courses List -->
     <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for course in courses %}
         <div class="bg-white rounded-2xl shadow-xl p-6">
@@ -33,26 +45,17 @@
                 <i class='bx bx-award text-yellow-600 text-lg' title="Includes Certificate"></i>
                 {% endif %}
             </div>
-            <div class="mt-4 flex gap-2">
-                <a href="{{ course.link }}" target="_blank" class="flex-1 text-center bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">
-                    View Course
+            <div class="mt-4">
+                <a href="{% url 'admin_course_details' course.id %}" class="inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                    View Enrollments
                 </a>
-                {% if user.is_authenticated %}
-                <a href="{% url 'enroll_course' course.id %}" class="flex-1 text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
-                    Enroll
-                </a>
-                {% else %}
-                <a href="{% url 'login' %}" class="flex-1 text-center bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition">
-                    Login to Enroll
-                </a>
-                {% endif %}
             </div>
         </div>
         {% empty %}
         <div class="col-span-full bg-white rounded-2xl shadow-xl p-10 text-center">
             <i class='bx bx-book text-6xl text-slate-400 mb-4'></i>
             <h3 class="text-xl font-semibold text-slate-900">No Courses Available</h3>
-            <p class="text-slate-600 mt-2">Check back later or upgrade your plan.</p>
+            <p class="text-slate-600 mt-2">Add courses to start managing enrollments.</p>
         </div>
         {% endfor %}
     </div>

@@ -1,15 +1,21 @@
 from django.shortcuts import render,redirect,get_object_or_404
 from django.contrib.auth import authenticate, login
-from .forms import SignupForm,ProfileForm,JobApplicationForm,JobForm,AppointmentForm,PostponeAppointmentForm
+from .forms import (SignupForm,ProfileForm,JobApplicationForm,
+                    JobForm,AppointmentForm,PostponeAppointmentForm,
+                    MockInterviewForm,MockInterviewFeedbackForm,
+                    CourseForm,)
 from .models import (ChatQuestionAnswer,Invoice, CandidateChat,
                      Job,Profile,Subscription,Course,
                      JobApplication,Appointment,Interaction,
-                     SupportQuery,Notification,CalendarEvent)
+                     SupportQuery,Notification,CalendarEvent,
+                     MockInterviewFeedback,InterviewSlot,
+                     Enrollment,Certificate,UserProgress,)
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from difflib import SequenceMatcher
 from datetime import date, timedelta
+import datetime
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count
@@ -28,6 +34,8 @@ import uuid
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.contrib.auth.models import User 
+from django.core.mail import send_mail 
+from django.utils import timezone
 
 
 
@@ -657,12 +665,14 @@ def ai_resume_optimizer(request):
     })
 
 
-
-
-
-@login_required
 def courses(request):
+    profile = request.user.profile if request.user.is_authenticated else None
     courses = Course.objects.all()
+    if profile:
+        if not profile.is_pro and not profile.is_proplus:
+            courses = courses.filter(tier_required='FREE')
+        elif profile.is_pro and not profile.is_proplus:
+            courses = courses.filter(tier_required__in=['FREE', 'PRO'])
     return render(request, 'courses.html', {'courses': courses})
 
 
@@ -677,9 +687,11 @@ def profile(request):
     filled = sum(1 for f in fields if f)
     completion = int((filled / len(fields)) * 100) 
      
-
+    mock_feedbacks = MockInterviewFeedback.objects.filter(appointment__application__user=request.user)
     subscription = getattr(request.user, "subscription", None)
-
+    enrollments = Enrollment.objects.filter(profile=request.user.profile).select_related('course')[:5]  # Limit to 5 for display
+    certificates = Certificate.objects.filter(enrollment__profile=request.user.profile)
+    
     if request.method == "POST":
         form = ProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
@@ -692,6 +704,9 @@ def profile(request):
         'profile': profile,
         'completion': completion,
         'subscription': subscription,
+        'mock_feedbacks': mock_feedbacks,
+        'enrollments': enrollments,
+        'certificates': certificates,
     })
 
 
@@ -727,11 +742,13 @@ def application_tracker(request, application_id):
 
 @staff_member_required
 def admin_dashboard(request):
+    courses = Course.objects.all()[:5]
     context = {
         'total_jobs': Job.objects.count(),
         'total_candidates': Profile.objects.count(),
         'total_applications': JobApplication.objects.count(),
         'pending_queries': SupportQuery.objects.filter(resolved=False).count(),
+        'courses': courses,
     }
     return render(request, 'admin/dashboard.html', context)
 
@@ -1150,11 +1167,10 @@ def appointment_list(request):
     if search_query:
         appointments = appointments.filter(application__user__username__icontains=search_query)
 
-    # Dynamically select template based on appt_type (no fallback)
     template_name = {
         'INTERVIEW': 'admin/interview_list.html',
         'ONE_ON_ONE': 'admin/one_on_one_list.html',
-    }[appt_type] 
+    }.get(appt_type)
 
     users = User.objects.filter(
         profile__isnull=False,
@@ -1163,18 +1179,23 @@ def appointment_list(request):
         Q(profile__is_pro=True) | Q(profile__is_proplus=True)
     ).select_related('profile')
 
+    todays_slots, created = InterviewSlot.objects.get_or_create(date=date.today())
     context = {
         "appointments": appointments,
         "appt_type": appt_type,
         "search_query": search_query,
-        "users": users,  # Changed from 'applications' to 'users'
+        "users": users,
+        'todays_slots': todays_slots,
     }
     return render(request, template_name, context)
 
 
 @recruiter_required
 def create_interview_appointment(request):
-    return _create_appointment(request, 'INTERVIEW')
+    try:
+        return _create_appointment(request, 'INTERVIEW')
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 @recruiter_required
 def create_one_on_one_appointment(request):
@@ -1183,39 +1204,57 @@ def create_one_on_one_appointment(request):
 def _create_appointment(request, appointment_type):
     form = AppointmentForm(request.POST or None)
 
-    if request.method == "POST" and form.is_valid():
-        user = form.cleaned_data['user']
-        application = JobApplication.objects.filter(user=user).first()
-        if not application:
-            first_job = Job.objects.first()
-            application = JobApplication.objects.create(user=user, job=first_job)
+    if request.method == "POST":
+        if form.is_valid():
+            user = form.cleaned_data['user']
+            application = JobApplication.objects.filter(user=user).first()
+            
+            scheduled_date = form.cleaned_data['scheduled_at'].date()
+            slot, created = InterviewSlot.objects.get_or_create(date=scheduled_date)
+            if not slot.can_schedule():
+                return JsonResponse({'success': False, 'error': 'No available slots for this date.'})
+            
+            if not application:
+                first_job = Job.objects.first()
+                if not first_job:
+                        return JsonResponse({'success': False, 'error': 'No jobs available to create application.'})
+                application = JobApplication.objects.create(user=user, job=first_job)
 
-        appointment = form.save(commit=False)
-        appointment.application = application
-        appointment.consultant = request.user
-        appointment.appointment_type = appointment_type
-        appointment.save()  # Save appointment first
+            appointment = form.save(commit=False)
+            appointment.application = application
+            appointment.consultant = request.user
+            appointment.appointment_type = appointment_type
+            appointment.save()  
 
-        # Create CalendarEvent after appointment is saved
-        calendar_event = CalendarEvent.objects.create(
-            title=f"{appointment_type.replace('_',' ')} - {appointment.application.user.username}",
-            user=appointment.application.user,
-            start_time=appointment.scheduled_at,
-            end_time=appointment.scheduled_at + timezone.timedelta(hours=1),  
-            related_appointment=appointment
-        )
-        print(f"CalendarEvent created: {calendar_event.title} for user {calendar_event.user.username}")
+            slot.increment_slots()
 
-        Interaction.objects.create(
-            application=appointment.application,
-            admin=request.user,
-            message=f"{appointment_type.replace('_',' ')} scheduled on {appointment.scheduled_at}"
-        )
+            calendar_event = CalendarEvent.objects.create(
+                title=f"{appointment_type.replace('_',' ')} - {appointment.application.user.username}",
+                user=appointment.application.user,
+                start_time=appointment.scheduled_at,
+                end_time=appointment.scheduled_at + timezone.timedelta(hours=1),  
+                related_appointment=appointment
+            )
+            print(f"CalendarEvent created: {calendar_event.title} for user {calendar_event.user.username}")
 
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True})
-        return redirect(reverse('appointment_list') + f'?type={appointment_type}')
+            Notification.objects.create(
+                    user=appointment.application.user,
+                    message=f"Interview scheduled for {appointment.scheduled_at}."
+                )
+            
+            Interaction.objects.create(
+                application=appointment.application,
+                admin=request.user,
+                message=f"{appointment_type.replace('_',' ')} scheduled on {appointment.scheduled_at}"
+            )
 
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect(reverse('appointment_list') + f'?type={appointment_type}')
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': form.errors})
+            
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         html = render_to_string('admin/appointment_form.html', {'form': form}, request)
         return JsonResponse({'html': html})
@@ -1253,6 +1292,109 @@ def edit_appointment(request, appointment_id):
     return redirect(reverse('appointment_list') + f'?type={appointment.appointment_type}')
 
 
+
+@login_required
+def schedule_mock_interview(request):
+    try:
+        # Debug: Log request type
+        print(f"Request method: {request.method}, AJAX: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
+        
+        profile = request.user.profile
+        if not profile.is_proplus:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'This feature is only available for Pro Plus users.'})
+            messages.error(request, "This feature is only available for Pro Plus users.")
+            return redirect('profile')
+
+        if not profile.can_schedule_mock_interview():
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'already slot full'})
+            messages.error(request, "already slot full")
+            return redirect('profile')
+        
+        if request.method == 'POST':
+            form = MockInterviewForm(request.POST, user=request.user)
+            if form.is_valid():
+                # Create appointment
+                appointment = form.save(commit=False)
+                appointment.application = JobApplication.objects.filter(user=request.user).first()  # Link to existing application
+                
+                # If no application exists, create a dummy one
+                if not appointment.application:
+                    first_job = Job.objects.first()
+                    if first_job:
+                        appointment.application = JobApplication.objects.create(user=request.user, job=first_job)
+                        print(f"Created JobApplication for user {request.user.username} with job {first_job.title}")  # Debug
+                    else:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse({'success': False, 'error': 'No jobs available to create an application.'})
+                        messages.error(request, "No jobs available to create an application.")
+                        return redirect('profile')
+                
+                # Ensure application is set
+                if not appointment.application:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'success': False, 'error': 'Failed to create application.'})
+                    messages.error(request, "Failed to create application.")
+                    return redirect('profile')
+                
+                appointment.consultant = User.objects.filter(is_staff=True).first()  # Assign a consultant (improve with logic)
+                appointment.appointment_type = 'INTERVIEW'
+                appointment.is_mock_interview = True
+                appointment.video_link = "https://zoom.us/j/example"  # Placeholder; integrate Zoom API
+                appointment.save()
+
+                # Decrement quota
+                profile.increment_mock_interviews()
+
+                # Create calendar event
+                CalendarEvent.objects.create(
+                    title=f"Mock Interview - {appointment.interview_type}",
+                    user=request.user,
+                    start_time=appointment.scheduled_at,
+                    end_time=appointment.scheduled_at + timedelta(hours=1),
+                    related_appointment=appointment
+                )
+
+                # In-app notification
+                Notification.objects.create(
+                    user=request.user,
+                    message=f"Mock interview scheduled for {appointment.scheduled_at}. Video Link: {appointment.video_link}"
+                )
+
+                # Email notification
+                send_mail(
+                    subject="Mock Interview Scheduled",
+                    message=f"Your mock interview is scheduled for {appointment.scheduled_at}. Video Link: {appointment.video_link}. Type: {appointment.interview_type}, Role: {appointment.target_role}",
+                    from_email="noreply@yourapp.com",  # Update with your email
+                    recipient_list=[request.user.email],
+                    fail_silently=True,
+                )
+
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True})
+                messages.success(request, "Mock interview scheduled successfully! Check your email for details.")
+                return redirect('profile')
+            else:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': 'Form validation failed.'})
+                messages.error(request, "Form validation failed.")
+                return redirect('profile')
+        else:
+            form = MockInterviewForm(user=request.user)
+
+        return render(request, 'schedule_mock_interview.html', {
+            'form': form,
+            'remaining_quota': profile.mock_interviews_remaining(),
+        })
+    except Exception as e:
+        print(f"Exception in schedule_mock_interview: {str(e)}")  # Debug: Log exception
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)  # Fallback for non-AJAX
+
+
+
 @recruiter_required
 def postpone_appointment(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id)
@@ -1267,6 +1409,17 @@ def postpone_appointment(request, appointment_id):
                 application = JobApplication.objects.create(user=user, job=first_job)
             form.instance.application = application
         form.save()
+
+        if appointment.scheduled_at and (appointment.scheduled_at - now()).total_seconds() > 86400:
+            if appointment.is_mock_interview:
+                appointment.application.user.profile.decrement_mock_interviews()
+            else:
+                slot = InterviewSlot.objects.filter(date=appointment.scheduled_at.date()).first()
+                if slot:
+                    slot.decrement_slots()
+
+        if appointment.is_mock_interview and (appointment.scheduled_at - now()).total_seconds() > 86400:  # 24h
+            appointment.application.user.profile.decrement_mock_interviews()
 
         Interaction.objects.create(
             application=appointment.application,
@@ -1299,6 +1452,62 @@ def update_appointment_status(request, appointment_id, status):
 
     return redirect(reverse ('appointment_list') + f'?type={appointment.appointment_type}')
 
+
+@recruiter_required
+def upload_mock_feedback(request, appointment_id):
+    appointment = get_object_or_404(Appointment, id=appointment_id, is_mock_interview=True)
+    feedback, created = MockInterviewFeedback.objects.get_or_create(appointment=appointment)
+
+    if request.method == 'POST':
+        form = MockInterviewFeedbackForm(request.POST, request.FILES, instance=feedback)
+        if form.is_valid():
+            form.instance.uploaded_by = request.user
+            form.save()
+            
+            Notification.objects.create(
+                user=appointment.application.user,
+                message="Your mock interview feedback is ready. Check your profile."
+            )
+
+            send_mail(
+                subject="Mock Interview Feedback Available",
+                message="Your mock interview feedback report and improvement plan are now available. Log in to view them.",
+                from_email="noreply@yourapp.com",
+                recipient_list=[appointment.application.user.email],
+                fail_silently=True,
+            )
+
+            if appointment.status != 'DONE':
+                appointment.status = 'DONE'
+                appointment.save()
+
+            return redirect(reverse('appointment_list') + '?appt_type=INTERVIEW')
+
+    else:
+        form = MockInterviewFeedbackForm(instance=feedback)
+
+    return render(request, 'admin/upload_feedback.html', {'form': form, 'appointment': appointment})
+
+
+@recruiter_required
+def mark_done_with_feedback(request, appointment_id):
+    if request.method == 'POST':
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        feedback_notes = request.POST.get('feedback_notes', '').strip()  # Optional, defaults to empty
+        
+        if feedback_notes:
+            appointment.notes = (appointment.notes or '') + f"\n\nFeedback: {feedback_notes}"
+        
+        appointment.status = 'DONE'
+        appointment.save()
+        
+        Notification.objects.create(
+            user=appointment.application.user,
+            message="Your interview has been marked as completed. Check for feedback."
+        )
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
+
 @recruiter_required
 def appointment_list_api(request):
     q = request.GET.get("q", "")
@@ -1322,20 +1531,19 @@ def appointment_list_api(request):
     if status:
         appointments = appointments.filter(status=status)
 
-    # Date filtering
     if start_date_str:
         try:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
             appointments = appointments.filter(scheduled_at__date__gte=start_date)
         except ValueError:
-            pass  # Ignore invalid date
+            pass 
 
     if end_date_str:
         try:
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
             appointments = appointments.filter(scheduled_at__date__lte=end_date)
         except ValueError:
-            pass  # Ignore invalid date
+            pass  
 
     data = []
     for a in appointments:
@@ -1347,10 +1555,55 @@ def appointment_list_api(request):
             "status": a.status,
             "datetime": a.scheduled_at.strftime("%d %b %Y %H:%M"),
             "notes": a.notes,
+            "interview_type": a.interview_type or "N/A",
+            "target_role": a.target_role or "N/A", 
+            "is_mock": a.is_mock_interview,
         })
 
     return JsonResponse(data, safe=False)
 
+
+@recruiter_required 
+def appointment_view(request, appointment_id):
+    if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        feedback = getattr(appointment, 'feedback', None) 
+        feedback_notes = feedback.improvement_plan if feedback else 'N/A'
+        
+        data = {
+            'candidate': appointment.application.user.username if appointment.application else 'N/A',
+            'interview_type': appointment.interview_type or 'N/A',
+            'target_role': appointment.target_role or 'N/A',
+            'scheduled_at': appointment.scheduled_at.strftime('%Y-%m-%d %H:%M') if appointment.scheduled_at else 'N/A',
+            'status': appointment.status,
+            'notes': appointment.notes or 'N/A',
+            'feedback_notes': feedback_notes,
+        }
+        return JsonResponse(data)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@recruiter_required
+def view_feedback(request, appointment_id):
+    appointment = get_object_or_404(Appointment, id=appointment_id, is_mock_interview=True)
+    feedback = get_object_or_404(MockInterviewFeedback, appointment=appointment)
+    
+    return render(request, 'admin/view_feedback.html', {
+        'appointment': appointment,
+        'feedback': feedback,
+    })
+
+
+@login_required
+def user_feedbacks(request):
+    appointments = Appointment.objects.filter(
+        application__user=request.user,
+        status='DONE'
+    ).select_related('feedback').order_by('-scheduled_at')
+    
+    return render(request, 'user_feedbacks.html', {
+        'appointments': appointments,
+    })
 
 @recruiter_required
 def admin_calendar(request):
@@ -1372,3 +1625,108 @@ def calendar_events(request):
         })
 
     return JsonResponse(data, safe=False)
+
+
+
+@login_required
+def enroll_course(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    profile = request.user.profile
+
+    if course.tier_required == 'PRO_PLUS' and not profile.is_proplus:
+        messages.error(request, "This course requires Pro Plus subscription.")
+        return redirect('courses')
+    if course.tier_required == 'PRO' and not (profile.is_pro or profile.is_proplus):
+        messages.error(request, "This course requires Pro subscription.")
+
+    if course.max_enrollments > 0 and Enrollment.objects.filter(profile=request.user.profile, course=course).count() >= course.max_enrollments:  # Fixed: Use 'profile'
+        messages.error(request, "Enrollment limit reached for this course.")
+        return redirect('courses')
+
+    enrollment, created = Enrollment.objects.get_or_create(profile=request.user.profile, course=course)  # Fixed: Use 'profile'
+    if created:
+        enrollment.current_stage = 'ENROLLED' 
+        enrollment.save()
+
+        for step in course.progressstep_set.all():
+            UserProgress.objects.create(enrollment=enrollment, step=step)
+        messages.success(request, "Enrolled successfully!")
+    return redirect('training_progress')
+
+
+
+@login_required
+def training_progress(request):
+    enrollments = Enrollment.objects.filter(profile=request.user.profile).select_related('course')
+    return render(request, 'training_progress.html', {'enrollments': enrollments})
+
+@staff_member_required
+def admin_course_details(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    enrollments = Enrollment.objects.filter(course=course).select_related('profile__user')  
+    return render(request, 'admin/admin_course_details.html', {'course': course, 'enrollments': enrollments})
+
+
+@staff_member_required
+def admin_user_progress(request, enrollment_id):
+    enrollment = get_object_or_404(Enrollment, id=enrollment_id)
+    progresses = UserProgress.objects.filter(enrollment=enrollment).select_related('step')
+    if request.method == 'POST':
+        for progress in progresses:
+            status = request.POST.get(f'status_{progress.id}')
+            if status in ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED']:
+                progress.status = status
+                progress.save()
+
+        if all(p.status == 'COMPLETED' for p in progresses):
+            if enrollment.current_stage == 'ENROLLED':
+                enrollment.current_stage = 'STARTED'
+            elif enrollment.current_stage == 'STARTED':
+                enrollment.current_stage = 'EXAMS'
+            elif enrollment.current_stage == 'EXAMS':
+                enrollment.current_stage = 'INTERVIEW'
+            elif enrollment.current_stage == 'INTERVIEW':
+                enrollment.current_stage = 'CERTIFIED'
+                enrollment.status = 'COMPLETED'
+                enrollment.completed_at = timezone.now()
+                if enrollment.course.has_certificate:
+                    Certificate.objects.get_or_create(enrollment=enrollment)
+            enrollment.save()
+        messages.success(request, "Progress updated.")
+        return redirect('admin_user_progress', enrollment_id=enrollment_id)
+    return render(request, 'admin/admin_user_progress.html', {'enrollment': enrollment, 'progresses': progresses})
+
+@login_required
+def training_dashboard(request):
+    profile = request.user.profile
+    enrollments = Enrollment.objects.filter(profile=request.user.profile)
+    certificates = Certificate.objects.filter(enrollment__profile=request.user.profile, enrollment__status='COMPLETED')  # Fixed: Only for completed enrollments
+    available_courses = Course.objects.filter(tier_required__in=['FREE'] if not profile.is_pro and not profile.is_proplus else ['FREE', 'PRO'] if profile.is_pro else ['FREE', 'PRO', 'PRO_PLUS'])
+    return render(request, 'training_dashboard.html', {
+        'enrollments': enrollments,
+        'certificates': certificates,
+        'available_courses': available_courses
+    })
+
+
+@staff_member_required
+def sync_progress(request):
+    messages.success(request, "Progress synced from VTS.")
+    return redirect('admin_dashboard')
+
+@staff_member_required
+def admin_courses(request):
+    courses = Course.objects.all()
+    return render(request, 'admin/admin_courses.html', {'courses': courses})
+
+@staff_member_required
+def admin_add_course(request):
+    if request.method == 'POST':
+        form = CourseForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Course added successfully!')
+            return redirect('admin_courses')
+    else:
+        form = CourseForm()
+    return render(request, 'admin/admin_add_course.html', {'form': form})

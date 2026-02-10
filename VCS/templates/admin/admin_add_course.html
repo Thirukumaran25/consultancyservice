@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Boxicons -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="max-w-4xl mx-auto px-6 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                Add New Course
+            </h1>
+            <p class="mt-1 text-slate-500">
+                Create a new training course
+            </p>
+        </div>
+        <a href="{% url 'admin_courses' %}"
+           class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition">
+            <i class='bx bx-arrow-back'></i>
+            Back to Courses
+        </a>
+    </div>
+
+    <!-- Form -->
+    <div class="mt-8 bg-white rounded-2xl shadow-xl p-6">
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-6">
+                <div>
+                    <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-slate-700">Title</label>
+                    {{ form.title }}
+                    {% if form.title.errors %}<p class="text-red-600 text-sm">{{ form.title.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-slate-700">Description</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}<p class="text-red-600 text-sm">{{ form.description.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.link.id_for_label }}" class="block text-sm font-medium text-slate-700">Link</label>
+                    {{ form.link }}
+                    {% if form.link.errors %}<p class="text-red-600 text-sm">{{ form.link.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.tier_required.id_for_label }}" class="block text-sm font-medium text-slate-700">Tier Required</label>
+                    {{ form.tier_required }}
+                    {% if form.tier_required.errors %}<p class="text-red-600 text-sm">{{ form.tier_required.errors.0 }}</p>{% endif %}
+                </div>
+                <div class="flex items-center">
+                    {{ form.has_certificate }}
+                    <label for="{{ form.has_certificate.id_for_label }}" class="ml-2 text-sm font-medium text-slate-700">Includes Certificate</label>
+                    {% if form.has_certificate.errors %}<p class="text-red-600 text-sm">{{ form.has_certificate.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.max_enrollments.id_for_label }}" class="block text-sm font-medium text-slate-700">Max Enrollments (0 for unlimited)</label>
+                    {{ form.max_enrollments }}
+                    {% if form.max_enrollments.errors %}<p class="text-red-600 text-sm">{{ form.max_enrollments.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
+                    Add Course
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
