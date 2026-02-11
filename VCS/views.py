@@ -292,6 +292,15 @@ def signup(request):
             user = authenticate(username=user.username, password=form.cleaned_data['password'])
             if user is not None:
                 login(request, user) 
+
+                send_mail(
+                    subject="Welcome to VCS Career Services!",
+                    message=f"Hi {user.username},\n\nWelcome to VCS! Your account has been created successfully. Start exploring jobs and building your career.\n\nBest,\nVCS Team",
+                    from_email="noreply@yourapp.com",
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+
                 return redirect('/')
     else:
         form = SignupForm()
@@ -438,7 +447,6 @@ def apply_job(request, pk):
         )
         return redirect('upgrade_plan') 
 
-    # UPDATED: Check for exclusive jobs
     if job.is_exclusive and not (profile.is_pro or profile.is_proplus):
         messages.error(request, "Exclusive job. Upgrade to Pro.")
         return redirect('job_detail', pk=pk)
@@ -935,6 +943,14 @@ def schedule_interview(request, application_id):
             message=f"📅 Your interview for '{application.job.job_title}' has been scheduled on {scheduled_at}."
         )
 
+        send_mail(
+            subject="Interview Scheduled",
+            message=f"Hi {application.user.username},\n\nYour interview for '{application.job.job_title}' has been scheduled on {scheduled_at}.\n\nNotes: {notes}\n\nBest,\nVCS Team",
+            from_email="noreply@yourapp.com",
+            recipient_list=[application.user.email],
+            fail_silently=True,
+        )
+
         return redirect("admin_candidate_detail", application.user.id)
 
     return render(request, "admin/schedule_interview.html", {"application": application})
@@ -1039,8 +1055,18 @@ def admin_application_detail(request, application_id):
     if request.method == "POST":
         new_status = request.POST.get("status")
         if new_status:
+            old_status = application.status
             application.status = new_status
             application.save()
+
+            send_mail(
+                subject="Job Application Status Update",
+                message=f"Hi {application.user.username},\n\nThe status of your application for '{application.job.job_title}' at {application.job.company_name} has changed from '{old_status}' to '{new_status}'.\n\nCheck your dashboard for more details.\n\nBest,\nVCS Team",
+                from_email="noreply@yourapp.com",
+                recipient_list=[application.user.email],
+                fail_silently=True,
+            )
+
             return redirect('admin_application_detail', application_id=application.id)
 
     return render(request, 'admin_application_detail.html', {
@@ -1124,6 +1150,14 @@ def reply_query(request, query_id):
         Notification.objects.create(
             user=query.user,
             message=f"Admin replied to your query: {query.subject}"
+        )
+
+        send_mail(
+            subject=f"Reply to Your Query: {query.subject}",
+            message=f"Hi {query.user.username},\n\nAdmin Reply: {reply_text}\n\nYour query has been resolved.\n\nBest,\nVCS Team",
+            from_email="noreply@yourapp.com",
+            recipient_list=[query.user.email],
+            fail_silently=True,
         )
 
     return redirect('admin_queries')
