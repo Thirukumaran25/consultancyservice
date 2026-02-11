@@ -3,59 +3,123 @@
 
 <!-- Boxicons -->
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<div class="mt-6">
+    <a href="{% url 'admin_dashboard' %}" class="text-blue-600 hover:underline">
+        ← Back to Dashboard
+    </a>
+</div>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-8 px-4">
+    <div class="max-w-5xl mx-auto">
 
-<div class="max-w-4xl mx-auto px-6 py-8">
-
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-                Progress for {{ enrollment.user.username }}
-            </h1>
-            <p class="mt-1 text-slate-500">
-                Course: {{ enrollment.course.title }}
-            </p>
-        </div>
-        <a href="{% url 'admin_course_details' enrollment.course.id %}"
-           class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition">
-            <i class='bx bx-arrow-back'></i>
-            Back to Course
-        </a>
-    </div>
-
-    <!-- Progress Form -->
-    <div class="mt-8 bg-white rounded-2xl shadow-xl p-6">
-        <form method="post">
-            {% csrf_token %}
-            <div class="space-y-4">
-                {% for progress in progresses %}
-                <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
-                    <div class="flex-1">
-                        <h4 class="font-medium text-slate-900">{{ progress.step.title }}</h4>
-                        <p class="text-sm text-slate-600">{{ progress.step.description }}</p>
-                    </div>
-                    <select name="status_{{ progress.id }}" class="px-3 py-2 border rounded-lg">
-                        <option value="NOT_STARTED" {% if progress.status == 'NOT_STARTED' %}selected{% endif %}>Not Started</option>
-                        <option value="IN_PROGRESS" {% if progress.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
-                        <option value="COMPLETED" {% if progress.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
-                    </select>
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-slate-200">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div>
+                    <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">
+                        Progress for {{ enrollment.profile.user.username }}
+                    </h1>
+                    <p class="mt-2 text-slate-600">
+                        Course: <span class="font-semibold text-indigo-600">{{ enrollment.course.title }}</span>
+                    </p>
+                    <p class="text-sm text-slate-500 mt-1">
+                        Current Stage: <span class="font-medium text-indigo-700">{{ enrollment.get_current_stage_display }}</span> ({{ enrollment.status }})
+                    </p>
                 </div>
-                {% endfor %}
+                <a href="{% url 'admin_course_details' enrollment.course.id %}"
+                   class="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200 transition-all duration-200 shadow-sm">
+                    <i class='bx bx-arrow-back'></i>
+                    Back to Course
+                </a>
             </div>
-            <div class="mt-6 flex justify-end">
-                <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
-                    Update Progress
-                </button>
-            </div>
-        </form>
 
-        <div class="mt-6">
-            <label for="current_stage" class="block text-sm font-medium text-slate-700">Update Current Stage</label>
-            <select name="current_stage" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                {% for value, label in enrollment.STAGE_CHOICES %}
-                <option value="{{ value }}" {% if enrollment.current_stage == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+            <!-- Overall Progress Bar -->
+            <div class="mt-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-slate-700">Overall Progress</span>
+                    <span class="text-sm font-semibold text-indigo-600">{{ enrollment.get_stage_number }}/5 Stages Completed</span>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-4 overflow-hidden shadow-inner">
+                    <div class="h-4 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-full transition-all duration-700 ease-out"
+                         style="width: {{ progress_percentage }}%;"></div>  <!-- FIXED: Use pre-calculated percentage -->
+                </div>
+                <p class="text-xs text-slate-500 mt-2">{{ progress_percentage }}% Complete</p>  <!-- FIXED: Use pre-calculated percentage -->
+            </div>
+        </div>
+
+        <!-- Info Alert -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-6 shadow-sm">
+            <div class="flex items-start gap-3">
+                <i class="bx bx-info-circle text-blue-600 text-lg mt-0.5"></i>
+                <div>
+                    <p class="text-sm font-medium text-blue-800">Progress Locking</p>
+                    <p class="text-sm text-blue-700 mt-1">
+                        Once a stage is advanced, previous stages are locked to ensure data integrity. You can only move forward.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Form -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
+            <h2 class="text-xl font-bold text-slate-900 mb-6">Update Step Progress</h2>
+            <form method="post">
+                {% csrf_token %}
+                <div class="space-y-4">
+                    {% for progress in progresses %}
+                    <div class="flex items-center gap-4 p-5 bg-gradient-to-r from-slate-50 to-white rounded-xl border transition-all duration-300 hover:shadow-md {% if forloop.counter < enrollment.current_stage %}border-gray-300 opacity-60{% else %}border-slate-200 hover:border-indigo-300{% endif %}">
+                        <div class="flex-shrink-0">
+                            {% if progress.status == 'COMPLETED' %}
+                            <i class='bx bx-check-circle text-green-600 text-2xl animate-pulse'></i>
+                            {% elif progress.status == 'IN_PROGRESS' %}
+                            <i class='bx bx-time text-yellow-600 text-2xl animate-bounce'></i>
+                            {% elif forloop.counter < enrollment.current_stage %}
+                            <i class='bx bx-lock text-gray-400 text-2xl' title="Locked: Stage completed"></i>
+                            {% else %}
+                            <i class='bx bx-circle text-slate-400 text-2xl'></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-slate-900 text-lg">{{ progress.step.title }}</h4>
+                            <p class="text-sm text-slate-600 mt-1">{{ progress.step.description }}</p>
+                        </div>
+                        <select name="status_{{ progress.id }}" 
+                                class="px-4 py-2 border rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 {% if forloop.counter < enrollment.current_stage %}bg-gray-100 cursor-not-allowed text-gray-500{% endif %}"
+                                {% if forloop.counter < enrollment.current_stage %}disabled{% endif %}>
+                            <option value="NOT_STARTED" {% if progress.status == 'NOT_STARTED' %}selected{% endif %}>Not Started</option>
+                            <option value="IN_PROGRESS" {% if progress.status == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                            <option value="COMPLETED" {% if progress.status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-8 flex justify-end">
+                    <button type="submit" class="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-blue-700 active:scale-95 transition-all duration-200 shadow-lg">
+                        <i class='bx bx-save mr-2'></i> Update Progress
+                    </button>
+                </div>
+            </form>
+
+            <!-- Manual Stage Update -->
+            <div class="mt-8 border-t border-slate-200 pt-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Advanced: Manual Stage Override</h3>
+                <form method="post" class="flex items-end gap-4">
+                    {% csrf_token %}
+                    <div class="flex-1">
+                        <label for="current_stage" class="block text-sm font-medium text-slate-700 mb-2">Force Update Current Stage</label>
+                        <select name="current_stage" id="current_stage" class="w-full px-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                            {% for value, label in enrollment.STAGE_CHOICES %}
+                            <option value="{{ value }}" {% if enrollment.status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 py-2 rounded-lg font-semibold hover:from-red-600 hover:to-pink-600 active:scale-95 transition-all duration-200 shadow-md">
+                        <i class='bx bx-edit-alt mr-1'></i> Override
+                    </button>
+                </form>
+                <p class="text-xs text-red-600 mt-2">
+                    <i class="bx bx-error-circle"></i> Use with caution: This bypasses automatic progression.
+                </p>
+            </div>
         </div>
     </div>
 </div>

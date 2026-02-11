@@ -47,6 +47,9 @@ class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
     <th>Experience</th>
     <th>Salary</th>
     <th>Remote</th>
+    <!-- NEW: Added columns for exclusive and recruiter email -->
+    <th>Exclusive</th>
+    <th>Recruiter Email</th>
     <th>Actions</th>
 </tr>
 </thead>
@@ -60,6 +63,9 @@ class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
     <td>{{ job.experience }}</td>
     <td>₹{{ job.salary_range }}</td>
     <td>{% if job.is_remote %}✅{% else %}❌{% endif %}</td>
+    <!-- NEW: Display exclusive and recruiter email -->
+    <td>{% if job.is_exclusive %}✅{% else %}❌{% endif %}</td>
+    <td>{{ job.recruiter_email|default:"N/A" }}</td>
     <td class="space-x-2">
         <button type="button"
         onclick="openEditModal(
@@ -71,7 +77,10 @@ class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
         '{{ job.salary_range }}',
         '{{ job.is_remote }}',
         '{{ job.eligibility|escapejs }}',
-        '{{ job.job_description|escapejs }}')"
+        '{{ job.job_description|escapejs }}',
+        '{{ job.is_exclusive }}',  <!-- NEW -->
+        '{{ job.recruiter_email|escapejs }}'  <!-- NEW -->
+        )"
         class="text-blue-600 hover:underline">
         Edit
         </button>
@@ -118,6 +127,14 @@ class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
 <input type="checkbox" name="is_remote"> Remote Job
 </label>
 
+<!-- NEW: Exclusive checkbox -->
+<label class="flex items-center gap-2">
+<input type="checkbox" name="is_exclusive"> Exclusive Job (Pro/Pro Plus only)
+</label>
+
+<!-- NEW: Recruiter email input -->
+<input name="recruiter_email" placeholder="Recruiter Email (for intros)" class="w-full border p-2 rounded">
+
 <textarea name="eligibility" rows="2" placeholder="Eligibility" class="w-full border p-2 rounded"></textarea>
 <textarea name="job_description" rows="3" placeholder="Job Description" class="w-full border p-2 rounded"></textarea>
 
@@ -157,6 +174,14 @@ class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
 <input type="checkbox" id="edit_remote" name="is_remote"> Remote Job
 </label>
 
+<!-- NEW: Exclusive checkbox -->
+<label class="flex items-center gap-2">
+<input type="checkbox" id="edit_exclusive" name="is_exclusive"> Exclusive Job (Pro/Pro Plus only)
+</label>
+
+<!-- NEW: Recruiter email input -->
+<input id="edit_recruiter_email" name="recruiter_email" placeholder="Recruiter Email (for intros)" class="w-full border p-2 rounded">
+
 <textarea id="edit_eligibility" name="eligibility" rows="2" class="w-full border p-2 rounded"></textarea>
 <textarea id="edit_description" name="job_description" rows="3" class="w-full border p-2 rounded"></textarea>
 
@@ -177,7 +202,7 @@ function closeAddModal(){
     document.getElementById('addModal').classList.add('hidden');
 }
 
-function openEditModal(id,title,company,location,experience,salary,is_remote,eligibility,description){
+function openEditModal(id,title,company,location,experience,salary,is_remote,eligibility,description,is_exclusive,recruiter_email){  // UPDATED: Added new params
     document.getElementById('editModal').classList.remove('hidden');
 
     document.getElementById('edit_title').value = title;
@@ -188,7 +213,10 @@ function openEditModal(id,title,company,location,experience,salary,is_remote,eli
     document.getElementById('edit_eligibility').value = eligibility;
     document.getElementById('edit_description').value = description;
 
-    document.getElementById('edit_remote').checked = (is_remote === "True");
+        document.getElementById('edit_remote').checked = (is_remote === "True");
+    // NEW: Set exclusive and recruiter email
+    document.getElementById('edit_exclusive').checked = (is_exclusive === "True");
+    document.getElementById('edit_recruiter_email').value = recruiter_email;
 
     document.getElementById('editForm').action = "/dashboard/jobs/edit/" + id + "/";
 }

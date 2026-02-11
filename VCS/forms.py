@@ -2,12 +2,11 @@ from django import forms
 from django.contrib.auth.models import User
 from .models import (Profile,JobApplication,Job,Appointment,
                      InterviewSlot,MockInterviewFeedback,UserProgress,
-                     Enrollment,Course)
+                     Enrollment,Course, ChatEscalation, Badge, AnnualReview)  # UPDATED: Added new models
 from django.forms import ModelForm
 from django.core.exceptions import ValidationError
 import re
 from django.utils import timezone
-
 
 class SignupForm(forms.ModelForm):
     password = forms.CharField(
@@ -57,12 +56,10 @@ class ProfileForm(forms.ModelForm):
             'skills': forms.Textarea(attrs={'class': 'w-full border rounded p-2'}),
         }
 
-
 def validate_file_size(value):
     limit = 5 * 1024 * 1024 
     if value.size > limit:
         raise ValidationError('File too large. Size should not exceed 5 MB.')
-
 
 class JobApplicationForm(forms.Form):
     full_name = forms.CharField(
@@ -82,7 +79,6 @@ class JobApplicationForm(forms.Form):
         widget=forms.ClearableFileInput(attrs={'class': 'w-full'})
     )
 
-
 class JobApplicationStatusForm(forms.ModelForm):
     class Meta:
         model = JobApplication
@@ -90,9 +86,6 @@ class JobApplicationStatusForm(forms.ModelForm):
         widgets = {
             'status': forms.Select(attrs={'class': 'form-control'})
         }
-
-
-
 
 class JobForm(ModelForm):
     class Meta:
@@ -106,46 +99,9 @@ class JobForm(ModelForm):
             'is_remote',
             'eligibility',
             'job_description',
+            'is_exclusive',  # NEW: Added for exclusive jobs
+            'recruiter_email',  # NEW: Added for intros
         ]
-
-
-# class AppointmentForm(forms.ModelForm):
-#     application = forms.ModelChoiceField(
-#         queryset=JobApplication.objects.select_related('user', 'job'),
-#         empty_label="Select a Candidate",
-#         widget=forms.Select(attrs={'class': 'border rounded p-2 w-full'}),
-#         label="Candidate"
-#     )
-    
-#     class Meta:
-#         model = Appointment
-#         fields = ['application', 'scheduled_at', 'notes']
-#         widgets = {
-#             'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
-#             'notes': forms.Textarea(attrs={'rows': 4}),
-#         }
-    
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.fields['application'].label_from_instance = lambda obj: obj.user.username
-
-
-# class PostponeAppointmentForm(forms.ModelForm):
-#     class Meta:
-#         model = Appointment
-#         fields = ['scheduled_at', 'notes']
-#         widgets = {
-#             'scheduled_at': forms.DateTimeInput(attrs={'type': 'datetime-local', 'required': True}),
-#             'notes': forms.Textarea(attrs={'rows': 4}),
-#         }
-    
-#     def save(self, commit=True):
-#         instance = super().save(commit=False)
-#         instance.status = 'POSTPONED'
-#         if commit:
-#             instance.save()
-#         return instance
-
 
 class AppointmentForm(forms.ModelForm):
     user = forms.ModelChoiceField(
@@ -188,8 +144,6 @@ class PostponeAppointmentForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-    
-
 
 class MockInterviewForm(forms.ModelForm):
     class Meta:
@@ -212,13 +166,11 @@ class MockInterviewForm(forms.ModelForm):
         if not profile.can_schedule_mock_interview():
             raise ValidationError("You have exhausted your monthly mock interview quota. Wait for next month or upgrade.")
         return cleaned_data
-    
 
 class MockInterviewFeedbackForm(forms.ModelForm):
     class Meta:
         model = MockInterviewFeedback
         fields = ['feedback_report', 'improvement_plan']
-
 
 class EnrollmentForm(forms.Form):
     course_id = forms.IntegerField(widget=forms.HiddenInput())
@@ -246,8 +198,6 @@ class ProgressUpdateForm(forms.ModelForm):
         model = UserProgress
         fields = ['status']
 
-
-
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
@@ -256,3 +206,19 @@ class CourseForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
             'link': forms.URLInput(attrs={'placeholder': 'https://example.com'}),
         }
+
+# NEW: Forms for new models
+class ChatEscalationForm(forms.ModelForm):
+    class Meta:
+        model = ChatEscalation
+        fields = ['query']
+
+class BadgeForm(forms.ModelForm):
+    class Meta:
+        model = Badge
+        fields = ['name', 'description', 'criteria']
+
+class AnnualReviewForm(forms.ModelForm):
+    class Meta:
+        model = AnnualReview
+        fields = ['report', 'roadmap']

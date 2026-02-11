@@ -11,6 +11,14 @@
         <div>
             <h1 class="text-3xl font-bold tracking-tight text-slate-900">
                 Course Catalog
+                <!-- NEW: Pro Plus Badge -->
+                {% if user.is_authenticated %}
+                    {% if user.profile.is_proplus %}
+                        <span class="ml-2 inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-semibold">
+                            <i class="bx bx-star"></i> Pro Plus
+                        </span>
+                    {% endif %}
+                {% endif %}
             </h1>
             <p class="mt-1 text-slate-500">
                 Upskill with our training programs
@@ -33,18 +41,68 @@
                 <i class='bx bx-award text-yellow-600 text-lg' title="Includes Certificate"></i>
                 {% endif %}
             </div>
+            
+            <!-- NEW: Quota Display for Pro/Pro Plus -->
+            {% if user.is_authenticated %}
+                {% if user.profile.is_pro or user.profile.is_proplus %}
+                    <div class="mt-2 text-sm text-gray-600">
+                        Enrollments: {{ profile.courses_enrolled_this_month }}/{{ profile.course_enrollment_limit|default:"Unlimited" }} used
+                    </div>
+                {% endif %}
+            {% endif %}
+            
             <div class="mt-4 flex gap-2">
                 <a href="{{ course.link }}" target="_blank" class="flex-1 text-center bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">
                     View Course
                 </a>
                 {% if user.is_authenticated %}
-                <a href="{% url 'enroll_course' course.id %}" class="flex-1 text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
-                    Enroll
-                </a>
+                    {% if course.tier_required == 'FREE' %}
+                        {% if profile.can_enroll_course %}
+                            <a href="{% url 'enroll_course' course.id %}" class="flex-1 text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
+                                Enroll
+                            </a>
+                        {% else %}
+                            <span class="flex-1 text-center bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" title="Quota exceeded">
+                                Quota Full
+                            </span>
+                        {% endif %}
+                    {% elif course.tier_required == 'PRO' %}
+                        {% if user.profile.is_pro or user.profile.is_proplus %}
+                            {% if profile.can_enroll_course %}
+                                <a href="{% url 'enroll_course' course.id %}" class="flex-1 text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
+                                    Enroll
+                                </a>
+                            {% else %}
+                                <span class="flex-1 text-center bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" title="Quota exceeded">
+                                    Quota Full
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            <a href="{% url 'upgrade_plan' %}" class="flex-1 text-center bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition">
+                                Upgrade Required
+                            </a>
+                        {% endif %}
+                    {% elif course.tier_required == 'PRO_PLUS' %}
+                        {% if user.profile.is_proplus %}
+                            {% if profile.can_enroll_course %}
+                                <a href="{% url 'enroll_course' course.id %}" class="flex-1 text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
+                                    Enroll
+                                </a>
+                            {% else %}
+                                <span class="flex-1 text-center bg-gray-400 text-white py-2 rounded-lg cursor-not-allowed" title="Quota exceeded">
+                                    Quota Full
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            <a href="{% url 'upgrade_plan' %}" class="flex-1 text-center bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition">
+                                Upgrade Required
+                            </a>
+                        {% endif %}
+                    {% endif %}
                 {% else %}
-                <a href="{% url 'login' %}" class="flex-1 text-center bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition">
-                    Login to Enroll
-                </a>
+                    <a href="{% url 'login' %}" class="flex-1 text-center bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition">
+                        Login to Enroll
+                    </a>
                 {% endif %}
             </div>
         </div>

@@ -29,5 +29,19 @@
             Submit Application
         </button>
     </form>
+
+    <!-- NEW: Recruiter Intro Note for Pro Plus Users -->
+    {% if user.is_authenticated %}
+        {% if user.profile.is_proplus %}
+            <div class="mt-6 bg-purple-50 border border-purple-300 rounded-lg p-4">
+                <h3 class="text-lg font-semibold text-purple-700 mb-2">
+                    <i class="bx bx-envelope"></i> Pro Plus Feature: Recruiter Intro
+                </h3>
+                <p class="text-sm text-purple-600">
+                    As a Pro Plus user, we'll automatically send a direct introduction email to the recruiter (if available) to highlight your application and increase your chances of getting noticed.
+                </p>
+            </div>
+        {% endif %}
+    {% endif %}
 </div>
 {% endblock %}

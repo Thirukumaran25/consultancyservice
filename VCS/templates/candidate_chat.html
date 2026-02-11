@@ -4,6 +4,12 @@
 <div class="max-w-4xl mx-auto px-3 sm:px-6">
     <h2 class="text-xl sm:text-2xl font-bold mb-4 text-center sm:text-left">
         Candidate Chat
+        <!-- NEW: Pro Plus Badge -->
+        {% if user.is_authenticated and user.profile.is_proplus %}
+            <span class="ml-2 inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-semibold">
+                <i class="bx bx-star"></i> Pro Plus
+            </span>
+        {% endif %}
     </h2>
     <div id="chat-box" 
          class="border p-3 sm:p-4 h-[50vh] sm:h-64 overflow-y-scroll mb-4 bg-gray-50 rounded">
@@ -85,7 +91,10 @@ $(document).ready(function(){
                 'csrfmiddlewaretoken': '{{ csrf_token }}'
             },
             success: function(data){
-                if(data.error) return;
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
 
                 $('#chat-box').append(
                     '<p><strong>You:</strong> ' + data.question + '</p>' +
@@ -127,6 +136,15 @@ $(document).ready(function(){
                 $(this).hide();
             }
         });
+    });
+
+    // NEW: Handle escalation for Pro Plus (if response indicates escalation)
+    // Note: This assumes the view returns a special 'escalated' flag or message
+    // If escalation happens, append a special message
+    $('#send-btn').on('click', function(){
+        // This is a placeholder; actual escalation is handled in the view
+        // If the response contains 'escalated', show the message
+        // For now, we'll check in the success callback
     });
 
 });

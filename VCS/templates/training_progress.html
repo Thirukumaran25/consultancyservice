@@ -11,10 +11,26 @@
         <div>
             <h1 class="text-3xl font-bold tracking-tight text-slate-900">
                 Training Progress
+                <!-- NEW: Pro Plus Badge -->
+                {% if user.is_authenticated %}
+                    {% if user.profile.is_proplus %}
+                        <span class="ml-2 inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-semibold">
+                            <i class="bx bx-star"></i> Pro Plus
+                        </span>
+                    {% endif %}
+                {% endif %}
             </h1>
             <p class="mt-1 text-slate-500">
                 Track your enrolled courses and completion status
             </p>
+            <!-- NEW: Quota Reminder for Pro/Pro Plus -->
+            {% if user.is_authenticated %}
+                {% if user.profile.is_pro or user.profile.is_proplus %}
+                    <p class="text-sm text-gray-600 mt-1">
+                        Enrollments used: {{ profile.courses_enrolled_this_month }}/{{ profile.course_enrollment_limit|default:"Unlimited" }} this month.
+                    </p>
+                {% endif %}
+            {% endif %}
         </div>
         <a href="{% url 'training_dashboard' %}"
            class="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition">
@@ -37,24 +53,24 @@
             <p class="text-slate-600 mb-4">{{ enrollment.course.description }}</p>
 
             <!-- Progress Bar -->
-            <div class="mb-4">
-                <h4 class="text-sm font-medium text-slate-700 mb-2">Progress</h4>
-                <div class="flex items-center space-x-2">
-                    {% for stage, label in enrollment.STAGE_CHOICES %}
-                    <div class="flex-1 text-center">
-                        <div class="w-full bg-slate-200 rounded-full h-2 mb-1">
-                            <div class="h-2 rounded-full transition-all duration-500
-                                        {% if forloop.counter <= enrollment.get_current_stage_display|length %}bg-indigo-600{% else %}bg-slate-300{% endif %}"></div>
-                        </div>
-                        <span class="text-xs text-slate-600">{{ label }}</span>
-                    </div>
-                    {% if not forloop.last %}
-                    <i class='bx bx-chevron-right text-slate-400'></i>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-                <p class="text-xs text-slate-500 mt-2">Current Stage: {{ enrollment.get_current_stage_display }}</p>
+<div class="mb-4">
+    <h4 class="text-sm font-medium text-slate-700 mb-2">Progress</h4>
+    <div class="flex items-center space-x-2">
+        {% for stage, label in enrollment.STAGE_CHOICES %}
+        <div class="flex-1 text-center">
+            <div class="w-full bg-slate-200 rounded-full h-3 mb-1 border border-slate-300">
+                <div class="h-3 rounded-full transition-all duration-500
+                            {% if forloop.counter <= enrollment.get_stage_number %}bg-indigo-600{% else %}bg-slate-300{% endif %}"></div>
             </div>
+            <span class="text-xs text-slate-600">{{ label }}</span>
+        </div>
+        {% if not forloop.last %}
+        <i class='bx bx-chevron-right text-slate-400'></i>
+        {% endif %}
+        {% endfor %}
+    </div>
+    <p class="text-xs text-slate-500 mt-2">Current Stage: {{ enrollment.get_current_stage_display }}</p>
+</div>
 
             <!-- Progress Steps -->
             <div class="space-y-3">
@@ -77,6 +93,20 @@
                 </div>
                 {% endfor %}
             </div>
+
+            <!-- NEW: Pro Plus Insight Section -->
+            {% if user.is_authenticated %}
+                {% if user.profile.is_proplus %}
+                    <div class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <h4 class="text-lg font-semibold text-purple-700 mb-2">
+                            <i class="bx bx-star"></i> Pro Plus Insight
+                        </h4>
+                        <p class="text-sm text-purple-600">
+                            Estimated completion: {{ enrollment.estimated_completion_days|default:"10-15" }} days. Focus on advanced modules for faster progress!
+                        </p>
+                    </div>
+                {% endif %}
+            {% endif %}
 
             <!-- Certificate if Completed -->
             {% if enrollment.status == 'COMPLETED' and enrollment.certificate %}

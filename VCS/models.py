@@ -35,6 +35,11 @@ class Job(models.Model):
     saved_by = models.ManyToManyField(User, blank=True, related_name='saved_jobs')
     applied_by = models.ManyToManyField(User, through='JobApplication', related_name='applied_jobs')
 
+    # NEW: For priority and exclusive jobs
+    is_exclusive = models.BooleanField(default=False)  # Pro/Pro Plus only
+    priority_score = models.FloatField(default=0.0)  # For matching
+    recruiter_email = models.EmailField(blank=True)  # For intros
+
     class Meta:
         indexes = [
             models.Index(fields=['job_title']),
@@ -93,6 +98,7 @@ class Certificate(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+
     phone = models.CharField(max_length=20)
     bio = models.TextField()
     education = models.CharField(max_length=200)
@@ -103,51 +109,136 @@ class Profile(models.Model):
 
     is_pro = models.BooleanField(default=False)
     is_proplus = models.BooleanField(default=False)
-    mock_interviews_this_month = models.PositiveIntegerField(default=0)  # Track used mock interviews this month
-    enrolled_courses = models.ManyToManyField(Course, through='Enrollment', related_name='enrolled_users')
-    certificates_earned = models.ManyToManyField(Certificate, related_name='earned_by')
 
-    def mock_interview_limit(self):
+    resume_optimizations_this_month = models.PositiveIntegerField(default=0)
+    chatbot_queries_this_month = models.PositiveIntegerField(default=0)
+    consultant_sessions_this_month = models.PositiveIntegerField(default=0)
+    mock_interviews_this_month = models.PositiveIntegerField(default=0)
+    courses_enrolled_this_month = models.PositiveIntegerField(default=0)
+
+    consultant_hours_used_this_month = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0.0
+    )
+
+    enrolled_courses = models.ManyToManyField(
+        'Course', through='Enrollment', related_name='enrolled_users'
+    )
+
+    certificates_earned = models.ManyToManyField(
+        'Certificate', related_name='earned_by'
+    )
+
+    dedicated_consultant = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dedicated_profiles',
+        limit_choices_to={'is_staff': True}
+    )
+
+    @property
+    def tier(self):
         if self.is_proplus:
-            return 4
-        return 0
+            return "PROPLUS"
+        elif self.is_pro:
+            return "PRO"
+        return "FREE"
 
-    def mock_interviews_remaining(self):
-        limit = self.mock_interview_limit()
-        return max(0, limit - self.mock_interviews_this_month)
+    def get_limits(self):
+        """
+        Returns all limits based on subscription tier.
+        None = Unlimited
+        """
+        limits = {
+            "FREE": {
+                "applications":20,
+                "chatbot": 0,
+                "resume": 0,
+                "consultant_sessions": 0,
+                "mock_interviews": 0,
+                "courses":0,
+            },
+            "PRO": {
+                "applications": 100,
+                "chatbot": 250,
+                "resume": 3,
+                "consultant_sessions": 1,
+                "mock_interviews": 0,
+                "courses": 0,
+            },
+            "PROPLUS": {
+                "applications": None,   
+                "chatbot": None,      
+                "resume": 20,
+                "consultant_sessions": 4,
+                "mock_interviews": 4,
+                "courses": 1,
+            }
+        }
 
-    def can_schedule_mock_interview(self):
-        return self.mock_interviews_remaining() > 0
-
-    def increment_mock_interviews(self):
-        self.mock_interviews_this_month += 1
-        self.save()
-
-    def decrement_mock_interviews(self):
-        if self.mock_interviews_this_month > 0:
-            self.mock_interviews_this_month -= 1
-            self.save()
-
-    def application_limit(self):
-        if self.is_proplus:
-            return None
-        if self.is_pro:
-            return 100
-        return 20
+        return limits[self.tier]
 
     def applications_this_month(self):
         now = timezone.now()
-        return JobApplication.objects.filter(
-            user=self.user,
+        return self.user.jobapplication_set.filter(
             applied_at__year=now.year,
             applied_at__month=now.month
         ).count()
 
     def can_apply(self):
-        limit = self.application_limit()
+        limit = self.get_limits()["applications"]
         if limit is None:
             return True
         return self.applications_this_month() < limit
+
+    def check_quota(self, feature_name, used_value):
+        """
+        Generic quota checker.
+        feature_name must match keys in get_limits().
+        """
+        limit = self.get_limits()[feature_name]
+
+        if limit is None:
+            return True 
+
+        return used_value < limit
+
+    def can_use_chatbot(self):
+        return self.check_quota("chatbot", self.chatbot_queries_this_month)
+
+    def can_optimize_resume(self):
+        return self.check_quota("resume", self.resume_optimizations_this_month)
+
+    def can_schedule_session(self):
+        return self.check_quota("consultant_sessions", self.consultant_sessions_this_month)
+
+    def can_schedule_mock_interview(self):
+        return self.check_quota("mock_interviews", self.mock_interviews_this_month)
+
+    def can_enroll_course(self):
+        return self.check_quota("courses", self.courses_enrolled_this_month)
+
+    def increment_usage(self, field_name):
+        """
+        Generic increment method.
+        Example: self.increment_usage("chatbot_queries_this_month")
+        """
+        setattr(self, field_name, getattr(self, field_name) + 1)
+        self.save(update_fields=[field_name])
+
+
+    @staticmethod
+    def proplus_subscriber_count():
+        return Profile.objects.filter(is_proplus=True).count()
+
+    @staticmethod
+    def proplus_limit():
+        return 50
+
+    @staticmethod
+    def can_upgrade_to_proplus():
+        return Profile.proplus_subscriber_count() < Profile.proplus_limit()
 
     def __str__(self):
         return self.user.username
@@ -164,8 +255,31 @@ class Enrollment(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     enrolled_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=[('ENROLLED', 'Enrolled'), ('COMPLETED', 'Completed')], default='ENROLLED')
-    current_stage = models.CharField(max_length=20, choices=STAGE_CHOICES, default='ENROLLED')  # New field
+    current_stage = models.IntegerField(default=1) 
+    status = models.CharField(max_length=20, choices= STAGE_CHOICES, default='ENROLLED')
+
+    def get_stage_number(self):
+        status_to_number = {
+            'ENROLLED': 1,
+            'STARTED': 2,
+            'EXAMS': 3,
+            'INTERVIEW': 4,
+            'CERTIFIED': 5,
+        }
+        return status_to_number.get(self.status, 1) 
+
+    def save(self, *args, **kwargs):
+        if self.status == 'ENROLLED':
+            self.current_stage = 1
+        elif self.status == 'STARTED':
+            self.current_stage = 2
+        elif self.status == 'EXAMS':
+            self.current_stage = 3
+        elif self.status == 'INTERVIEW':
+            self.current_stage = 4
+        elif self.status == 'COMPLETED':
+            self.current_stage = 5 
+        super().save(*args, **kwargs)
 
     class Meta:
         unique_together = ('profile', 'course')
@@ -295,6 +409,16 @@ class Appointment(models.Model):
     is_mock_interview = models.BooleanField(default=False)
     waitlist = models.BooleanField(default=False)
 
+    # NEW: SLA tracking
+    sla_due = models.DateTimeField(null=True, blank=True)
+    sla_complied = models.BooleanField(default=False)
+
+    def set_sla(self):
+        if self.appointment_type == 'ONE_ON_ONE':
+            hours = 2 if self.application.user.profile.is_proplus else 4
+            self.sla_due = self.scheduled_at + timezone.timedelta(hours=hours)
+            self.save()
+
     def __str__(self):
         return f"{self.application.user} - {self.appointment_type}"
 
@@ -383,3 +507,40 @@ class CandidateChat(models.Model):
 
     def __str__(self):
         return f"{self.candidate.username}: {self.question[:50]}"
+
+
+class ChatEscalation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    query = models.TextField()
+    escalated_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    sla_due = models.DateTimeField()  
+    priority = models.CharField(max_length=10, default='HIGH')  
+
+class Badge(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    criteria = models.JSONField() 
+
+class UserBadge(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    earned_at = models.DateTimeField(auto_now_add=True)
+
+class AnnualReview(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    year = models.PositiveIntegerField()
+    report = models.TextField()
+    roadmap = models.TextField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+class SavedJob(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'job')
+
+    def __str__(self):
+        return f"{self.user.username} saved {self.job.job_title}"

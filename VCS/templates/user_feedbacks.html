@@ -1,31 +1,83 @@
 {% extends 'base.html' %}
-
 {% block content %}
-<a href="{% url 'profile' %}" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded">Back to Profile</a>
+
+<!-- Boxicons -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<a href="{% url 'profile' %}" class="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Back to Profile</a>
 <div class="max-w-4xl mx-auto px-6 py-8">
-    <h1 class="text-3xl font-bold mb-6">My Interview Feedback</h1>
-    
-    {% for appt in appointments %}
-        {% if appt.status == 'DONE' and appt.notes %}
-            <div class="bg-white p-6 rounded-lg shadow mb-6">
-                <h2 class="text-xl font-semibold mb-4">
-                    {% if appt.is_mock_interview %}Mock Interview{% else %}General Interview{% endif %} - {{ appt.scheduled_at|date:"M d, Y H:i" }}
-                </h2>
-                <p><strong>Type:</strong> {% if appt.is_mock_interview %}Mock Interview{% else %}General Interview{% endif %}</p>
-                <p><strong>Date:</strong> {{ appt.scheduled_at }}</p>
-                {% if appt.is_mock_interview and appt.feedback and appt.feedback.improvement_plan %}  
-                    <p><strong>Improvement Plan:</strong> {{ appt.feedback.improvement_plan }}</p>
-                    {% if appt.feedback.feedback_report %}
-                        <a href="{{ appt.feedback.feedback_report.url }}" target="_blank" class="text-blue-600 underline">Download Report</a>
-                    {% endif %}
+
+    <!-- Header -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-slate-200">
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 mb-2">
+            My Interview Feedback
+            <!-- NEW: Pro Plus Badge -->
+            {% if user.is_authenticated %}
+                {% if user.profile.is_proplus %}
+                    <span class="ml-2 inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-sm font-semibold">
+                        <i class="bx bx-star"></i> Pro Plus
+                    </span>
                 {% endif %}
-            </div>
+            {% endif %}
+        </h1>
+        <p class="text-slate-600">Review your interview feedback and improvement plans.</p>
+        <!-- NEW: Pro Plus Insight -->
+        {% if user.is_authenticated and user.profile.is_proplus %}
+            <p class="text-sm text-purple-700 mt-2">
+                <i class="bx bx-info-circle"></i> As a Pro Plus user, you receive detailed, personalized feedback reports.
+            </p>
         {% endif %}
-    {% endfor %}
-    
+    </div>
+
+    <!-- Feedback Cards -->
+    <div class="space-y-6">
+        {% for appt in appointments %}
+            {% if appt.status == 'DONE' and appt.notes %}
+                <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 hover:shadow-2xl transition-all duration-300 animate-fade-in">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="bx bx-message-detail text-indigo-600 text-2xl"></i>
+                        <h2 class="text-xl font-semibold text-slate-900">
+                            {% if appt.is_mock_interview %}Mock Interview{% else %}General Interview{% endif %} - {{ appt.scheduled_at|date:"M d, Y H:i" }}
+                        </h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <p class="text-slate-700"><strong>Type:</strong> {% if appt.is_mock_interview %}Mock Interview{% else %}General Interview{% endif %}</p>
+                        <p class="text-slate-700"><strong>Date:</strong> {{ appt.scheduled_at|date:"F j, Y g:i A" }}</p>
+                    </div>
+                    {% if appt.is_mock_interview and appt.feedback and appt.feedback.improvement_plan %}
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mb-4">
+                            <p class="text-slate-800"><strong>Improvement Plan:</strong> {{ appt.feedback.improvement_plan }}</p>
+                        </div>
+                        {% if appt.feedback.feedback_report %}
+                            <a href="{{ appt.feedback.feedback_report.url }}" target="_blank" class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md">
+                                <i class="bx bx-download"></i> Download Report
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Empty State -->
     {% if not appointments %}
-        <p class="text-gray-500 text-center">No feedback available yet.</p>
+        <div class="bg-white rounded-2xl shadow-xl p-10 text-center border border-slate-200">
+            <i class="bx bx-message-x text-6xl text-slate-400 mb-4"></i>
+            <h3 class="text-xl font-semibold text-slate-900 mb-2">No Feedback Available</h3>
+            <p class="text-slate-600">Complete an interview to receive feedback here.</p>
+        </div>
     {% endif %}
-    
+
 </div>
+
+<style>
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fade-in 0.5s ease-out;
+    }
+</style>
+
 {% endblock %}

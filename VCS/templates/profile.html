@@ -115,6 +115,28 @@
         </div>
       </div>
 
+      <!-- NEW: Badges Earned Card -->
+      <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <i class="bx bx-medal text-yellow-600"></i> Badges Earned
+        </h3>
+        {% if badges %}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {% for badge in badges %}
+              <div class="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                <i class="bx bx-medal text-yellow-600 text-2xl"></i>
+                <div>
+                  <h4 class="font-semibold text-gray-800">{{ badge.badge.name }}</h4>
+                  <p class="text-sm text-gray-600">{{ badge.badge.description }}</p>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-gray-500 text-sm">No badges earned yet. Keep applying to jobs and using features to unlock them!</p>
+        {% endif %}
+      </div>
+
       <!-- Quick Actions -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -263,7 +285,77 @@
     {% endif %}
 
   </div>
-</div>
+
+  <!-- NEW: Quota Usage Section -->
+  <div class="mt-6 bg-white rounded-2xl shadow-lg p-6">
+    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+      <i class="bx bx-bar-chart text-indigo-600"></i> Usage Quotas
+    </h3>
+    <div class="space-y-4">
+      <!-- Applications (All Tiers) -->
+      <div>
+        <div class="flex justify-between text-sm mb-1">
+                   <span>Job Applications</span>
+          <span>{{ profile.applications_this_month }}/{{ profile.application_limit|default:"Unlimited" }}</span>
+        </div>
+        <div class="w-full bg-gray-300 rounded-full h-3">
+          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.applications_percent }}%;"></div>
+        </div>
+      </div>
+
+      <!-- Chatbot Queries (Pro/Pro Plus) -->
+      {% if profile.is_pro or profile.is_proplus %}
+      <div>
+        <div class="flex justify-between text-sm mb-1">
+          <span>Chatbot Queries</span>
+          <span>{{ profile.chatbot_queries_this_month }}/{{ profile.chatbot_limit|default:"Unlimited" }}</span>
+        </div>
+        <div class="w-full bg-gray-300 rounded-full h-3">
+          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.chatbot_percent }}%;"></div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Resume Optimizations (Pro/Pro Plus) -->
+      {% if profile.is_pro or profile.is_proplus %}
+      <div>
+        <div class="flex justify-between text-sm mb-1">
+          <span>Resume Optimizations</span>
+          <span>{{ profile.resume_optimizations_this_month }}/{{ profile.resume_optimization_limit }}</span>
+        </div>
+        <div class="w-full bg-gray-300 rounded-full h-3">
+          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.resume_percent }}%;"></div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Consultant Sessions (Pro/Pro Plus) -->
+      {% if profile.is_pro or profile.is_proplus %}
+      <div>
+        <div class="flex justify-between text-sm mb-1">
+          <span>Consultant Sessions</span>
+          <span>{{ profile.consultant_sessions_this_month }}/{{ profile.consultant_session_limit }}</span>
+        </div>
+        <div class="w-full bg-gray-300 rounded-full h-3">
+          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.consultant_percent }}%;"></div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Mock Interviews (Pro Plus Only) -->
+      {% if profile.is_proplus %}
+      <div>
+        <div class="flex justify-between text-sm mb-1">
+          <span>Mock Interviews</span>
+          <span>{{ profile.mock_interviews_this_month }}/{{ profile.mock_interview_limit }}</span>
+        </div>
+        <div class="w-full bg-gray-300 rounded-full h-3">
+          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.mock_percent }}%;"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 
       {% endif %}
 

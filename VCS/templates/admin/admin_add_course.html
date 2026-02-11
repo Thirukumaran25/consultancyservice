@@ -4,68 +4,152 @@
 <!-- Boxicons -->
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 
-<div class="max-w-4xl mx-auto px-6 py-8">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-8 px-4">
+    <div class="max-w-4xl mx-auto">
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-                Add New Course
-            </h1>
-            <p class="mt-1 text-slate-500">
-                Create a new training course
-            </p>
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'admin_dashboard' %}" 
+               class="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200 transition-all duration-200 shadow-sm">
+                <i class='bx bx-left-arrow-alt'></i> Back to Dashboard
+            </a>
         </div>
-        <a href="{% url 'admin_courses' %}"
-           class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition">
-            <i class='bx bx-arrow-back'></i>
-            Back to Courses
-        </a>
-    </div>
 
-    <!-- Form -->
-    <div class="mt-8 bg-white rounded-2xl shadow-xl p-6">
-        <form method="post">
-            {% csrf_token %}
-            <div class="space-y-6">
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-slate-200 animate-fade-in">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-slate-700">Title</label>
+                    <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+                        <i class='bx bx-plus-circle text-indigo-600'></i> Add New Course
+                    </h1>
+                    <p class="mt-1 text-slate-600">Create a new training course for users.</p>
+                </div>
+                <a href="{% url 'admin_courses' %}"
+                   class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-all duration-200">
+                    <i class='bx bx-arrow-back'></i> Back to Courses
+                </a>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 animate-fade-in">
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <!-- Title Field -->
+                <div class="animate-fade-in">
+                    <label for="{{ form.title.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <i class='bx bx-edit text-indigo-600'></i> Course Title
+                    </label>
                     {{ form.title }}
-                    {% if form.title.errors %}<p class="text-red-600 text-sm">{{ form.title.errors.0 }}</p>{% endif %}
+                    {% if form.title.errors %}
+                        <p class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                            <i class='bx bx-error-circle'></i> {{ form.title.errors.0 }}
+                        </p>
+                    {% endif %}
                 </div>
-                <div>
-                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-slate-700">Description</label>
+                
+                <!-- Description Field -->
+                <div class="animate-fade-in">
+                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <i class='bx bx-file text-indigo-600'></i> Description
+                    </label>
                     {{ form.description }}
-                    {% if form.description.errors %}<p class="text-red-600 text-sm">{{ form.description.errors.0 }}</p>{% endif %}
+                    {% if form.description.errors %}
+                        <p class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                            <i class='bx bx-error-circle'></i> {{ form.description.errors.0 }}
+                        </p>
+                    {% endif %}
                 </div>
-                <div>
-                    <label for="{{ form.link.id_for_label }}" class="block text-sm font-medium text-slate-700">Link</label>
+                
+                <!-- Link Field -->
+                <div class="animate-fade-in">
+                    <label for="{{ form.link.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <i class='bx bx-link text-indigo-600'></i> Course Link
+                    </label>
                     {{ form.link }}
-                    {% if form.link.errors %}<p class="text-red-600 text-sm">{{ form.link.errors.0 }}</p>{% endif %}
+                    {% if form.link.errors %}
+                        <p class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                            <i class='bx bx-error-circle'></i> {{ form.link.errors.0 }}
+                        </p>
+                    {% endif %}
                 </div>
-                <div>
-                    <label for="{{ form.tier_required.id_for_label }}" class="block text-sm font-medium text-slate-700">Tier Required</label>
+                
+                <!-- Tier Required Field -->
+                <div class="animate-fade-in">
+                    <label for="{{ form.tier_required.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <i class='bx bx-crown text-indigo-600'></i> Tier Required
+                    </label>
                     {{ form.tier_required }}
-                    {% if form.tier_required.errors %}<p class="text-red-600 text-sm">{{ form.tier_required.errors.0 }}</p>{% endif %}
+                    {% if form.tier_required.errors %}
+                        <p class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                            <i class='bx bx-error-circle'></i> {{ form.tier_required.errors.0 }}
+                        </p>
+                    {% endif %}
                 </div>
-                <div class="flex items-center">
+                
+                <!-- Has Certificate Checkbox -->
+                <div class="animate-fade-in flex items-center">
                     {{ form.has_certificate }}
-                    <label for="{{ form.has_certificate.id_for_label }}" class="ml-2 text-sm font-medium text-slate-700">Includes Certificate</label>
-                    {% if form.has_certificate.errors %}<p class="text-red-600 text-sm">{{ form.has_certificate.errors.0 }}</p>{% endif %}
+                    <label for="{{ form.has_certificate.id_for_label }}" class="ml-3 text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <i class='bx bx-certificate text-indigo-600'></i> Includes Certificate
+                    </label>
+                    {% if form.has_certificate.errors %}
+                        <p class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                            <i class='bx bx-error-circle'></i> {{ form.has_certificate.errors.0 }}
+                        </p>
+                    {% endif %}
                 </div>
-                <div>
-                    <label for="{{ form.max_enrollments.id_for_label }}" class="block text-sm font-medium text-slate-700">Max Enrollments (0 for unlimited)</label>
+                
+                <!-- Max Enrollments Field -->
+                <div class="animate-fade-in">
+                    <label for="{{ form.max_enrollments.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <i class='bx bx-group text-indigo-600'></i> Max Enrollments (0 for unlimited)
+                    </label>
                     {{ form.max_enrollments }}
-                    {% if form.max_enrollments.errors %}<p class="text-red-600 text-sm">{{ form.max_enrollments.errors.0 }}</p>{% endif %}
+                    {% if form.max_enrollments.errors %}
+                        <p class="text-red-600 text-sm mt-1 flex items-center gap-1">
+                            <i class='bx bx-error-circle'></i> {{ form.max_enrollments.errors.0 }}
+                        </p>
+                    {% endif %}
                 </div>
-            </div>
-            <div class="mt-6 flex justify-end">
-                <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">
-                    Add Course
-                </button>
-            </div>
-        </form>
+                
+                <!-- Submit Button -->
+                <div class="mt-8 flex justify-end animate-fade-in">
+                    <button type="submit" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg flex items-center gap-2">
+                        <i class='bx bx-plus'></i> Add Course
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<style>
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fade-in 0.5s ease-out;
+    }
+    /* Custom form field styling */
+    input[type="text"], input[type="url"], input[type="number"], select, textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="text"]:focus, input[type="url"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        outline: none;
+    }
+    input[type="checkbox"] {
+        accent-color: #6366f1;
+    }
+</style>
 
 {% endblock %}

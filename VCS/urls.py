@@ -17,20 +17,17 @@ from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
                     appointment_view,view_feedback,user_feedbacks,
                     enroll_course,training_progress,training_dashboard,
                     admin_course_details,admin_user_progress,sync_progress,
-                    admin_courses,admin_add_course,)
+                    admin_courses,admin_add_course,admin_consultant_tracking,)
 
 urlpatterns = [
     path('', home, name='home'),
-     path('login/', user_login, name='login'),
+    path('login/', user_login, name='login'),
     path('signup/', signup, name='signup'),
     path('search/', search, name='search'),
     path('jobs/', job_list, name='job_list'),
     path('jobs/<int:pk>/', job_detail, name='job_detail'),
     path('jobs/<int:pk>/save/', save_job, name='save_job'),
     path('apply/<int:pk>/', apply_job, name='apply_job'),
-    path('profile/', profile, name='profile'),
-    path('saved-jobs/', saved_jobs, name='saved_jobs'),
-    path('applied-jobs/', applied_jobs, name='applied_jobs'),
     path('profile/', profile, name='profile'),
     path('saved-jobs/', saved_jobs, name='saved_jobs'),
     path('applied-jobs/', applied_jobs, name='applied_jobs'),
@@ -54,7 +51,6 @@ urlpatterns = [
     path('dashboard/chatfaq/save/', chatfaq_save, name='chatfaq_save'),
     path('dashboard/chatfaq/delete/<int:id>/', chatfaq_delete, name='chatfaq_delete'),
 
-    # path("create-order/", create_razorpay_order, name="create_razorpay_order"),
     path("payment-success/", payment_success, name="payment_success"),
 
     path('dashboard/', admin_dashboard, name='admin_dashboard'),
@@ -82,7 +78,6 @@ urlpatterns = [
     path("dashboard/calendar/events/", calendar_events, name="calendar_events"),
     path('user/feedbacks/', user_feedbacks, name='user_feedbacks'),
 
-
     path('dashboard/appointments/view/<int:appointment_id>/', appointment_view, name='appointment_view'),
     path('dashboard/appointments/<int:appointment_id>/view-feedback/', view_feedback, name='view_feedback'),
     path('dashboard/appointments/', appointment_list, name='appointment_list'),
@@ -105,4 +100,6 @@ urlpatterns = [
     path('dashboard/training/course/<int:course_id>/', admin_course_details, name='admin_course_details'),
     path('dashboard/training/enrollment/<int:enrollment_id>/', admin_user_progress, name='admin_user_progress'),
     path('dashboard/training/sync/', sync_progress, name='sync_progress'),
+
+    path('dashboard/consultant-tracking/',admin_consultant_tracking, name='admin_consultant_tracking'),
 ]

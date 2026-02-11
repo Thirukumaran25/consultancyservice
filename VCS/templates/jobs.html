@@ -1,4 +1,4 @@
-{% extends 'base.html' %} 
+{% extends 'base.html' %}
 {% block content %}
 
 <div class="bg-gray-100 min-h-screen px-4 py-8">
@@ -133,13 +133,37 @@
         </div>
 
         <div class="mt-2">
-            <i class='bx bx-rupee'></i> ₹{{ job.salary_range }}
+            <i class='bx bx-rupee'></i> {{ job.salary_range }}/mo
         </div>
 
         {% if job.is_remote %}
         <span class="inline-block mt-2 text-green-600 text-xs font-semibold">
             <i class='bx bx-globe'></i> Remote
         </span>
+        {% endif %}
+
+        <!-- NEW: Exclusive Badge for Pro/Pro Plus -->
+        {% if user.is_authenticated %}
+            {% if user.profile.is_pro or user.profile.is_proplus %}
+                {% if job.is_exclusive %}
+                    <span class="inline-block mt-2 text-purple-600 text-xs font-semibold bg-purple-100 px-2 py-1 rounded">
+                        <i class='bx bx-star'></i> Exclusive
+                    </span>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+
+        <!-- NEW: Match Score for Pro/Pro Plus -->
+        {% if user.is_authenticated %}
+            {% if user.profile.is_pro or user.profile.is_proplus %}
+                {% if job.match_score %}
+                    <div class="mt-2">
+                        <span class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded">
+                            <i class='bx bx-target-lock'></i> {{ job.match_score }}% Match
+                        </span>
+                    </div>
+                {% endif %}
+            {% endif %}
         {% endif %}
 
     </a>

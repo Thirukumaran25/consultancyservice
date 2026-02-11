@@ -1,83 +1,138 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div class="max-w-4xl mx-auto bg-white shadow rounded-xl p-8">
+<!-- Boxicons -->
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 
-<h1 class="text-2xl font-bold mb-6 text-blue-600">
-    📄 Application Detail
-</h1>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-8 px-4">
+    <div class="max-w-4xl mx-auto">
 
-<!-- Candidate Card -->
-<div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'admin_analytics' %}" 
+               class="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-200 transition-all duration-200 shadow-sm">
+                <i class='bx bx-left-arrow-alt'></i> Back to Analytics
+            </a>
+        </div>
 
-<div class="bg-gray-50 p-5 rounded-lg">
-    <h2 class="font-semibold text-lg mb-2">👤 Candidate Info</h2>
-    <p><strong>name:</strong> {{ application.user.username }}</p>
-    <p><strong>Email:</strong> {{ application.user.email }}</p>
+        <!-- Title -->
+        <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 mb-8 flex items-center gap-2">
+            <i class='bx bx-file text-indigo-600'></i> Application Detail
+        </h1>
+
+        <!-- Grid for Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+            <!-- Candidate Info Card -->
+            <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 hover:shadow-2xl transition-all duration-300 animate-fade-in">
+                <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-300 pb-3">
+                    <i class='bx bx-user text-indigo-600'></i> Candidate Info
+                </h2>
+                <div class="space-y-3">
+                    <p class="flex items-center gap-2">
+                        <i class='bx bx-user-circle text-slate-400'></i>
+                        <strong class="text-slate-700">Name:</strong> {{ application.user.username }}
+                    </p>
+                    <p class="flex items-center gap-2">
+                        <i class='bx bx-envelope text-slate-400'></i>
+                        <strong class="text-slate-700">Email:</strong> {{ application.user.email }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Job Info Card -->
+            <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 hover:shadow-2xl transition-all duration-300 animate-fade-in">
+                <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-300 pb-3">
+                    <i class='bx bx-briefcase text-indigo-600'></i> Job Info
+                </h2>
+                <div class="space-y-3">
+                    <p class="flex items-center gap-2">
+                        <i class='bx bx-tag text-slate-400'></i>
+                        <strong class="text-slate-700">Title:</strong> {{ application.job.job_title }}
+                    </p>
+                    <p class="flex items-center gap-2">
+                        <i class='bx bx-building text-slate-400'></i>
+                        <strong class="text-slate-700">Company:</strong> {{ application.job.company_name }}
+                    </p>
+                    <p class="flex items-center gap-2">
+                        <i class='bx bx-map text-slate-400'></i>
+                        <strong class="text-slate-700">Location:</strong> {{ application.job.location }}
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Application Status Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 hover:shadow-2xl transition-all duration-300 animate-fade-in mb-6">
+            <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-300 pb-3">
+                <i class='bx bx-bar-chart-alt-2 text-indigo-600'></i> Application Status
+            </h2>
+
+            <div class="space-y-4">
+                <p class="flex items-center gap-2">
+                    <i class='bx bx-calendar text-slate-400'></i>
+                    <strong class="text-slate-700">Applied On:</strong> {{ application.applied_at|date:"d M Y H:i" }}
+                </p>
+
+                <p class="flex items-center gap-2">
+                    <strong class="text-slate-700">Current Status:</strong>
+                    <span class="px-4 py-2 rounded-full text-sm font-semibold shadow-sm
+                        {% if application.status == 'HIRED' %}bg-green-100 text-green-700 border border-green-200
+                        {% elif application.status == 'REJECTED' %}bg-red-100 text-red-700 border border-red-200
+                        {% elif application.status == 'WAITING' %}bg-purple-100 text-purple-700 border border-purple-200
+                        {% elif application.status == 'VIEWED' %}bg-yellow-100 text-yellow-700 border border-yellow-200
+                        {% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                        {{ application.status }}
+                    </span>
+                </p>
+
+                <!-- Update Status Form -->
+                <form method="post" class="flex items-center gap-4 mt-6">
+                    {% csrf_token %}
+                    <select name="status" class="border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                        {% for key,label in status_choices %}
+                            <option value="{{ key }}" {% if key == application.status %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <button class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+                        Update Status
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Resume Card -->
+        {% if application.resume %}
+        <div class="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 hover:shadow-2xl transition-all duration-300 animate-fade-in">
+            <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-300 pb-3">
+                <i class='bx bx-file text-indigo-600'></i> Resume
+            </h2>
+            <a href="{{ application.resume.url }}" target="_blank"
+               class="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold transition-colors duration-200 hover:scale-105">
+                <i class='bx bx-download'></i> Download Resume
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
 </div>
 
-<div class="bg-gray-50 p-5 rounded-lg">
-    <h2 class="font-semibold text-lg mb-2">💼 Job Info</h2>
-    <p><strong>Title:</strong> {{ application.job.job_title }}</p>
-    <p><strong>Company:</strong> {{ application.job.company_name }}</p>
-    <p><strong>Location:</strong> {{ application.job.location }}</p>
-</div>
-
-</div>
-
-<!-- Application Info -->
-<div class="bg-gray-50 p-5 rounded-lg mb-6">
-    <h2 class="font-semibold text-lg mb-2">📊 Application Status</h2>
-
-    <p class="mb-2">
-        <strong>Applied On:</strong> {{ application.applied_at|date:"d M Y H:i" }}
-    </p>
-
-    <p class="mb-4">
-        <strong>Current Status:</strong>
-        <span class="px-3 py-1 rounded-full text-sm
-        {% if application.status == 'HIRED' %}bg-green-100 text-green-700
-        {% elif application.status == 'REJECTED' %}bg-red-100 text-red-700
-        {% elif application.status == 'WAITING' %}bg-purple-100 text-purple-700
-        {% elif application.status == 'VIEWED' %}bg-yellow-100 text-yellow-700
-        {% else %}bg-blue-100 text-blue-700{% endif %}">
-            {{ application.status }}
-        </span>
-    </p>
-
-    <!-- Update Status Form -->
-    <form method="post" class="flex items-center gap-4">
-        {% csrf_token %}
-        <select name="status" class="border rounded px-3 py-2">
-            {% for key,label in status_choices %}
-                <option value="{{ key }}" {% if key == application.status %}selected{% endif %}>
-                    {{ label }}
-                </option>
-            {% endfor %}
-        </select>
-
-        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            Update Status
-        </button>
-    </form>
-</div>
-
-<!-- Resume -->
-{% if application.resume %}
-<div class="bg-gray-50 p-5 rounded-lg mb-6">
-    <h2 class="font-semibold text-lg mb-2">📎 Resume</h2>
-    <a href="{{ application.resume.url }}" target="_blank"
-       class="text-blue-600 hover:underline">
-        Download Resume
-    </a>
-</div>
-{% endif %}
-
-<!-- Back -->
-<a href="{% url 'admin_analytics' %}" class="text-blue-600 hover:underline">
-    ← Back to Analytics
-</a>
-
-</div>
+<style>
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fade-in 0.5s ease-out;
+        animation-delay: calc(var(--i) * 0.1s);
+    }
+    .shadow-2xl {
+        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.2);
+    }
+</style>
 
 {% endblock %}

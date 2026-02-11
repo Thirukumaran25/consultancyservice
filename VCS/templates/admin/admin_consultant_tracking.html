@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+<div class="min-h-screen bg-slate-50 py-10 px-6">
+
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'admin_dashboard' %}" 
+               class="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium transition">
+                <i class='bx bx-arrow-back'></i> Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-md p-2 border border-slate-200">
+            <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <i class='bx bx-time-five text-indigo-600'></i>
+                Consultant Hour Tracking
+            </h1>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="bg-white rounded-2xl shadow-md p-2 mb-8 border border-slate-200">
+            <form method="get" class="flex flex-col md:flex-row gap-4">
+
+                <input type="text" name="search" value="{{ search_query }}"
+                       placeholder="Search by name or username..."
+                       class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+
+                <select name="tier"
+                        class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">All Tiers</option>
+                    <option value="pro" {% if tier_filter == 'pro' %}selected{% endif %}>Pro</option>
+                    <option value="proplus" {% if tier_filter == 'proplus' %}selected{% endif %}>Pro Plus</option>
+                </select>
+
+                <button type="submit"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm">
+                    <i class='bx bx-search'></i> Search
+                </button>
+
+                <a href="{% url 'admin_consultant_tracking' %}"
+                   class="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition shadow-sm text-center">
+                    Clear
+                </a>
+            </form>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200">
+
+                <thead class="bg-slate-100">
+                    <tr>
+                        <th class="p-4 text-left text-sm font-semibold text-slate-700">User</th>
+                        <th class="p-4 text-sm font-semibold text-slate-700">Tier</th>
+                        <th class="p-4 text-sm font-semibold text-slate-700">Hours Used</th>
+                        <th class="p-4 text-sm font-semibold text-slate-700">Hour Limit</th>
+                        <th class="p-4 text-sm font-semibold text-slate-700">Usage</th>
+                        <th class="p-4 text-sm font-semibold text-slate-700">Status</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200">
+
+                    {% for data in page_obj %}
+                    <tr class="hover:bg-slate-50 transition">
+
+                        <!-- User -->
+                        <td class="p-4">
+                            <div class="font-semibold text-slate-800">
+                                {{ data.profile.user.first_name }} {{ data.profile.user.last_name }}
+                            </div>
+                            <div class="text-sm text-slate-500">
+                                {{ data.profile.user.username }}
+                            </div>
+                        </td>
+
+                        <!-- Tier -->
+                        <td class="p-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                {% if data.tier == 'PROPLUS' %}bg-purple-100 text-purple-700
+                                {% elif data.tier == 'PRO' %}bg-blue-100 text-blue-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ data.tier }}
+                            </span>
+                        </td>
+
+                        <!-- Used -->
+                        <td class="p-4 text-slate-700">
+                            {{ data.used_hours|floatformat:1 }} hrs
+                        </td>
+
+                        <!-- Limit -->
+                        <td class="p-4 text-slate-700">
+                            {% if data.limit_hours %}
+                                {{ data.limit_hours|floatformat:1 }} hrs
+                            {% else %}
+                                <span class="text-indigo-600 font-semibold">Unlimited</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Progress -->
+                        <td class="p-4 w-64">
+                            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                <div class="h-2 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-full transition-all duration-700"
+                                     style="width: {{ data.percent }}%;">
+                                </div>
+                            </div>
+                            <span class="text-xs text-slate-500">
+                                {{ data.percent|floatformat:1 }}%
+                            </span>
+                        </td>
+
+                        <!-- Status -->
+                        <td class="p-4">
+                            {% if data.limit_hours and data.used_hours >= data.limit_hours %}
+                                <span class="text-red-600 font-semibold">Limit Reached</span>
+                            {% elif data.limit_hours and data.percent > 80 %}
+                                <span class="text-yellow-600 font-semibold">Near Limit</span>
+                            {% else %}
+                                <span class="text-green-600 font-semibold">Active</span>
+                            {% endif %}
+                        </td>
+
+                    </tr>
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="p-6 text-center text-slate-500">
+                            No consultant usage data found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-8 flex justify-center">
+            {% if page_obj.has_other_pages %}
+            <div class="flex gap-2">
+
+                {% if page_obj.has_previous %}
+                    <a href="?page=1&search={{ search_query }}&tier={{ tier_filter }}"
+                       class="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&tier={{ tier_filter }}"
+                       class="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">Previous</a>
+                {% endif %}
+
+                <span class="px-4 py-2 text-slate-600">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&tier={{ tier_filter }}"
+                       class="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">Next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}&search={{ search_query }}&tier={{ tier_filter }}"
+                       class="px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">Last</a>
+                {% endif %}
+
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 text-center">
+                <i class="bx bx-group text-4xl text-indigo-600 mb-2"></i>
+                <h3 class="font-semibold text-slate-900">Total Users</h3>
+                <p class="text-2xl font-bold text-slate-700">
+                    {{ page_obj.paginator.count }}
+                </p>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 text-center">
+                <i class="bx bx-time text-4xl text-green-600 mb-2"></i>
+                <h3 class="font-semibold text-slate-900">Total Hours Used</h3>
+                <p class="text-2xl font-bold text-slate-700">
+                    {{ total_hours|floatformat:1 }} hrs
+                </p>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 text-center">
+                <i class="bx bx-trending-up text-4xl text-purple-600 mb-2"></i>
+                <h3 class="font-semibold text-slate-900">Average Usage</h3>
+                <p class="text-2xl font-bold text-slate-700">
+                    {{ avg_usage|floatformat:1 }} hrs/user
+                </p>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

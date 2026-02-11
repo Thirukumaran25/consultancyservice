@@ -102,6 +102,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indi
 <p class="mt-3 text-xs sm:text-sm opacity-80">Interviews & 1-1 Sessions</p>
 </a>
 
+<!-- Training Courses -->
 <a href="{% url 'admin_courses' %}" class="block p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-orange-500 to-orange-700 text-white transition hover:shadow-xl">
     <div class="flex items-center justify-between">
         <div>
@@ -112,6 +113,22 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indi
     </div>
     <p class="mt-3 text-xs sm:text-sm opacity-80">Manage enrollments & progress</p>
 </a>
+
+<!-- Consultant Tracking (Styled Card) -->
+<a href="{% url 'admin_consultant_tracking' %}"
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-pink-500 to-purple-700 text-white transition hover:shadow-xl">
+
+<div class="flex items-center justify-between">
+    <div>
+        <p class="text-xs sm:text-sm opacity-80">Consultant</p>
+        <h2 class="text-lg sm:text-xl font-bold">Tracking</h2>
+    </div>
+    <i class='bx bx-time-five text-3xl sm:text-4xl'></i>
+</div>
+
+<p class="mt-3 text-xs sm:text-sm opacity-80">Monitor hours & sessions</p>
+</a>
+
 </div>
 
 <!-- ANALYTICS -->
@@ -126,6 +143,22 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indi
         <li>✅ Registered Candidates: {{ total_candidates }}</li>
         <li>✅ Total Applications: {{ total_applications }}</li>
         <li>✅ Pending Queries: {{ pending_queries }}</li>
+        <!-- NEW: Added SLA Compliance -->
+        <li>✅ SLA Compliance: {% if sla_compliance %}{{ sla_compliance|floatformat:1 }}%{% else %}N/A{% endif %}</li>
+    </ul>
+</div>
+
+<!-- NEW: Added Tier Conversions Section -->
+<div class="bg-white rounded-2xl shadow p-5 sm:p-6">
+    <h3 class="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2">
+        <i class='bx bx-trending-up text-green-600'></i> Tier Conversions
+    </h3>
+    <ul class="space-y-2 text-sm text-gray-600">
+        {% for conversion in tier_conversions %}
+            <li>✅ {{ conversion.plan_name }}: {{ conversion.count }}</li>
+        {% empty %}
+            <li>No conversions data available.</li>
+        {% endfor %}
     </ul>
 </div>
 

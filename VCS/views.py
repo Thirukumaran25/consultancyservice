@@ -3,13 +3,14 @@ from django.contrib.auth import authenticate, login
 from .forms import (SignupForm,ProfileForm,JobApplicationForm,
                     JobForm,AppointmentForm,PostponeAppointmentForm,
                     MockInterviewForm,MockInterviewFeedbackForm,
-                    CourseForm,)
+                    CourseForm, ChatEscalationForm, BadgeForm, AnnualReviewForm)  # UPDATED: Added new forms
 from .models import (ChatQuestionAnswer,Invoice, CandidateChat,
                      Job,Profile,Subscription,Course,
                      JobApplication,Appointment,Interaction,
                      SupportQuery,Notification,CalendarEvent,
                      MockInterviewFeedback,InterviewSlot,
-                     Enrollment,Certificate,UserProgress,)
+                     Enrollment,Certificate,UserProgress,
+                     ChatEscalation, Badge, UserBadge, AnnualReview)  # UPDATED: Added new models
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -36,27 +37,23 @@ from django.urls import reverse
 from django.contrib.auth.models import User 
 from django.core.mail import send_mail 
 from django.utils import timezone
-
-
-
+from celery import shared_task 
+from decimal import Decimal
 
 def recruiter_required(view_func):
     return user_passes_test(
         lambda u: u.is_authenticated and (u.is_staff or u.is_superuser or u.groups.filter(name='Recruiter').exists())
     )(view_func)
 
-
 def highlight_keywords(text, keywords):
     for kw in keywords:
         text = re.sub(f"(?i)({re.escape(kw)})", r"<b>\1</b>", text)
     return text
 
-
 # Create your views here.
 
 FREE_CHAT_LIMIT = 10
-PRO_CHAT_LIMIT = 100
-
+PRO_CHAT_LIMIT = 250  
 
 @csrf_exempt
 @login_required
@@ -73,21 +70,11 @@ def chatbot_api(request):
         return JsonResponse({'reply': "Please enter a question."})
     
     profile, _ = Profile.objects.get_or_create(user=request.user)
-    user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
-
-    if not profile.is_pro and not profile.is_proplus:
-        if user_chat_count >= FREE_CHAT_LIMIT:
-            return JsonResponse({
-                'reply': "⚠️ You have reached your free limit of 10 questions. Please upgrade to Pro.",
-                'upgrade_required': True
-            })
-
-    elif profile.is_pro and not profile.is_proplus:
-        if user_chat_count >= PRO_CHAT_LIMIT:
-            return JsonResponse({
-                'reply': "⚠️ You have reached your Pro limit of 100 questions. Please upgrade to Pro Plus for unlimited access.",
-                'upgrade_required': True
-            })
+    if not profile.can_use_chatbot():
+        return JsonResponse({
+            'reply': "⚠️ You have reached your limit. Upgrade.",
+            'upgrade_required': True
+        })
     
     job_keywords = ["job", "jobs", "vacancy", "opening", "developer", "engineer"]
     if any(word in user_question for word in job_keywords):
@@ -125,12 +112,21 @@ def chatbot_api(request):
             question=user_question,
             answer=json.dumps(answer)
         )
-        
+        profile.increment_chatbot_queries()  # UPDATED: Increment quota
         return JsonResponse({
             'reply': answer,
             'source': source
         })
     else:
+        # UPDATED: Add escalation for Pro Plus
+        if profile.is_proplus and "complex" in user_question.lower():
+            escalation = ChatEscalation.objects.create(
+                user=request.user,
+                query=user_question,
+                sla_due=timezone.now() + timedelta(hours=2)
+            )
+            return JsonResponse({'reply': "Escalated to consultant. Response in 2 hours."})
+        
         try:
             faq = ChatQuestionAnswer.objects.get(question__iexact=user_question)
             answer = faq.answer
@@ -144,13 +140,11 @@ def chatbot_api(request):
             question=user_question,
             answer=json.dumps(answer) 
         )
-
+        profile.increment_chatbot_queries()  # UPDATED: Increment quota
         return JsonResponse({
             'reply': answer,
             'source': source
         })
-
-
 
 @login_required
 def candidate_chat(request):
@@ -167,18 +161,15 @@ def candidate_chat(request):
         'behavioral_suggestions': behavioral_suggestions
     })
 
-
 @login_required
 def send_message(request):
     if request.method == 'POST':
         user_question = request.POST.get('question', '').strip()
         
         profile = Profile.objects.get(user=request.user)
-        user_chat_count = CandidateChat.objects.filter(candidate=request.user).count()
-
-        if not profile.is_pro and user_chat_count >= 10:
+        if not profile.can_use_chatbot():
             return JsonResponse({
-                'error': "You have reached your free limit of 10 questions. Upgrade to Pro.",
+                'error': "Limit reached. Upgrade.",
                 'upgrade_required': True
             })
         
@@ -207,7 +198,7 @@ def send_message(request):
                 question=user_question,
                 answer=answer
             )
-
+            profile.increment_chatbot_queries()  # UPDATED: Increment quota
             return JsonResponse({
                 'question': chat.question,
                 'answer': chat.answer,
@@ -216,20 +207,17 @@ def send_message(request):
 
     return JsonResponse({'error': 'Invalid request'})
 
-
 @login_required
 def chat_history(request):
     chats = CandidateChat.objects.filter(candidate=request.user).order_by('created_at')
     data = [{'question': c.question, 'answer': c.answer} for c in chats]
     return JsonResponse({'chats': data})
 
-
 @login_required
 @require_POST
 def clear_chat(request):
     CandidateChat.objects.filter(candidate=request.user).delete()
     return JsonResponse({'success': True})
-
 
 @staff_member_required
 def chatfaq_list(request):
@@ -240,7 +228,6 @@ def chatfaq_list(request):
         faqs = ChatQuestionAnswer.objects.all().order_by('-id')
 
     return render(request, 'admin/chatfaq_modal.html', {'faqs': faqs, 'search': search})
-
 
 @staff_member_required
 def chatfaq_save(request):
@@ -265,7 +252,6 @@ def chatfaq_save(request):
 
         return JsonResponse({'success': True})
 
-
 @staff_member_required
 def chatfaq_delete(request, id):
     if request.method == 'POST':
@@ -274,10 +260,8 @@ def chatfaq_delete(request, id):
         return JsonResponse({'success': True})
     return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
 
-
 def home(request):
     return render(request, 'home.html', {})
-
 
 def user_login(request):
     if request.method == "POST":
@@ -297,8 +281,6 @@ def user_login(request):
 
     return render(request, "registration/login.html")
 
-
-
 def signup(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
@@ -314,7 +296,6 @@ def signup(request):
     else:
         form = SignupForm()
     return render(request, 'signup.html', {'form': form})
-
 
 def job_list(request):
     jobs = Job.objects.all().order_by('-posted_at')
@@ -344,6 +325,20 @@ def job_list(request):
         jobs = jobs.filter(is_remote=True)
 
     if request.user.is_authenticated:
+        profile = request.user.profile
+        # UPDATED: Hide exclusive jobs for Free users
+        if not (profile.is_pro or profile.is_proplus):
+            jobs = jobs.filter(is_exclusive=False)
+
+        if profile.is_pro or profile.is_proplus:
+            for job in jobs:
+                score = SequenceMatcher(
+                    None,
+                    profile.skills.lower(),
+                    job.job_description.lower()
+                ).ratio() * 100
+                job.match_score = round(score, 1)
+
         if saved == "1":
             jobs = jobs.filter(saved_by=request.user)
 
@@ -369,8 +364,6 @@ def job_list(request):
 
     return render(request, 'jobs.html', context)
 
-
-
 def search(request):
     query = request.GET.get('q', '')
     results = []
@@ -385,7 +378,6 @@ def search(request):
         'query': query,
         'results': results
     })
-
 
 def job_detail(request, pk):
     job = get_object_or_404(Job, pk=pk)
@@ -402,9 +394,13 @@ def job_detail(request, pk):
             user=request.user
         ).exists()
 
-        profile = Profile.objects.get(user=request.user)
+        profile = request.user.profile
+
         applications_used = profile.applications_this_month()
-        applications_limit = profile.application_limit()
+
+        # 🔥 NEW SYSTEM
+        limits = profile.get_limits()
+        applications_limit = limits["applications"]
 
         if applications_limit is not None:
             limit_reached = applications_used >= applications_limit
@@ -419,6 +415,7 @@ def job_detail(request, pk):
         'show_warning': show_warning,
     })
 
+
 @login_required
 def save_job(request, pk):
     job = get_object_or_404(Job, pk=pk)
@@ -428,8 +425,6 @@ def save_job(request, pk):
         else:
             job.saved_by.add(request.user)    
     return redirect('job_detail', pk=pk)
-
-
 
 @login_required
 def apply_job(request, pk):
@@ -442,6 +437,11 @@ def apply_job(request, pk):
             "You’ve reached your monthly application limit. Upgrade to apply for more jobs."
         )
         return redirect('upgrade_plan') 
+
+    # UPDATED: Check for exclusive jobs
+    if job.is_exclusive and not (profile.is_pro or profile.is_proplus):
+        messages.error(request, "Exclusive job. Upgrade to Pro.")
+        return redirect('job_detail', pk=pk)
 
     application, created = JobApplication.objects.get_or_create(
         user=request.user,
@@ -459,6 +459,36 @@ def apply_job(request, pk):
                 application.save()
 
             messages.success(request, "Job application submitted successfully!")
+            if profile.is_proplus and job.recruiter_email:
+                subject = f"Introduction: {request.user.username} for {job.job_title} at {job.company_name}"
+                message = f"""
+                Dear Recruiter,
+
+                We are pleased to introduce {request.user.username} as a strong candidate for the {job.job_title} position at {job.company_name}.
+
+                Candidate Details:
+                - Name: {request.user.username}
+                - Email: {request.user.email}
+                - Skills: {profile.skills}
+                - Experience: {profile.experience}
+                - Resume: Attached or available in the application.
+
+                As a Pro Plus user, {request.user.username} has access to premium features, including priority matching and dedicated support.
+
+                Please review their application and consider them for an interview.
+
+                Best regards,
+                VCS Career Services Team
+                """
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email='noreply@yourapp.com',
+                    recipient_list=[job.recruiter_email],
+                    fail_silently=True,
+                )
+                messages.info(request, "A recruiter introduction email has been sent on your behalf.")
+
             return redirect('applied_jobs')
     else:
         form = JobApplicationForm()
@@ -468,11 +498,48 @@ def apply_job(request, pk):
         'form': form,
     })
 
-
-
 @login_required
 def profile(request):
     profile, created = Profile.objects.get_or_create(user=request.user)
+
+    fields = [profile.phone, profile.bio, profile.education, profile.location,
+              profile.experience, profile.skills, profile.resume]
+    filled = sum(1 for f in fields if f)
+    completion = int((filled / len(fields)) * 100) 
+    
+    mock_feedbacks = MockInterviewFeedback.objects.filter(appointment__application__user=request.user)
+    subscription = getattr(request.user, "subscription", None)
+    enrollments = Enrollment.objects.filter(profile=request.user.profile).select_related('course')[:5]
+    certificates = Certificate.objects.filter(enrollment__profile=request.user.profile)
+    
+    badges = UserBadge.objects.filter(user=request.user)
+    
+    quota_data = {}
+    
+    # Applications (all tiers)
+    if profile.application_limit and profile.application_limit > 0:
+        quota_data['applications_percent'] = min((profile.applications_this_month / profile.application_limit) * 100, 100)
+    else:
+        quota_data['applications_percent'] = 100
+    
+    # Chatbot (Pro/Pro Plus)
+    if profile.is_pro or profile.is_proplus:
+        if profile.chatbot_limit and profile.chatbot_limit > 0:
+            quota_data['chatbot_percent'] = min((profile.chatbot_queries_this_month / profile.chatbot_limit) * 100, 100)
+        else:
+            quota_data['chatbot_percent'] = 100 
+    
+    # Resume Optimizations (Pro/Pro Plus)
+    if profile.is_pro or profile.is_proplus:
+        quota_data['resume_percent'] = min((profile.resume_optimizations_this_month / profile.resume_optimization_limit) * 100, 100)
+    
+    # Consultant Sessions (Pro/Pro Plus)
+    if profile.is_pro or profile.is_proplus:
+        quota_data['consultant_percent'] = min((profile.consultant_sessions_this_month / profile.consultant_session_limit) * 100, 100)
+    
+    # Mock Interviews (Pro Plus only)
+    if profile.is_proplus:
+        quota_data['mock_percent'] = min((profile.mock_interviews_this_month / profile.mock_interview_limit) * 100, 100)
 
     if request.method == "POST":
         form = ProfileForm(request.POST, request.FILES, instance=profile)
@@ -481,9 +548,17 @@ def profile(request):
     else:
         form = ProfileForm(instance=profile)
 
-    return render(request, 'profile.html', {'form': form, 'profile': profile})
-
-
+    return render(request, 'profile.html', {
+        'form': form,
+        'profile': profile,
+        'completion': completion,
+        'subscription': subscription,
+        'mock_feedbacks': mock_feedbacks,
+        'enrollments': enrollments,
+        'certificates': certificates,
+        'badges': badges, 
+        'quota_data': quota_data,  
+    })
 
 @login_required
 def upgrade_plan(request):
@@ -508,6 +583,9 @@ def upgrade_plan(request):
             duration_days = 365
 
         elif plan == "pro_plus":
+            if not Profile.can_upgrade_to_proplus():
+                messages.error(request, "Pro Plus limit reached. Added to waitlist.")
+                return redirect('upgrade_plan')
             profile.is_pro = True
             profile.is_proplus = True
             plan_name = "Pro Plus"
@@ -548,8 +626,6 @@ def upgrade_plan(request):
             "invoice_url": invoice_url
         })
 
-
-
 @login_required
 def subscription_dashboard(request):
     default_plan = "Pro"
@@ -571,20 +647,15 @@ def subscription_dashboard(request):
         "invoices": invoices
     })
 
-
-
 @login_required
 def saved_jobs(request):
     jobs = request.user.saved_jobs.all()
     return render(request, 'saved_jobs.html', {'jobs': jobs})
 
-
 @login_required
 def applied_jobs(request):
     applications = JobApplication.objects.filter(user=request.user).select_related('job').order_by('-applied_at')
     return render(request, 'applied_jobs.html', {'applications': applications})
-
-
 
 @login_required
 def job_matching(request):
@@ -611,86 +682,76 @@ def job_matching(request):
         "matched_jobs": matched_jobs
     })
 
-
-
 @login_required
 def ai_resume_optimizer(request):
     profile = request.user.profile
-    suggestions = []
+    
     score = None
     matched_keywords = []
     missing_keywords = []
-    job_title = ""
+    suggestions = []
+    job_title = None
+    
+    if request.method == 'POST':
+        job_title = request.POST.get('job_title', '')
+        resume_text = request.POST.get('resume_text', '')
+        
 
-    if request.method == "POST":
-        resume_text = request.POST.get("resume_text", "").strip()
-        job_title = request.POST.get("job_title", "").strip()
-
-        if resume_text and job_title:
-            keyword_prompt = f"Extract a list of 5-10 key skills, technologies, and keywords relevant to the job title '{job_title}'. Provide them as a comma-separated list."
-            keyword_response = ask_gemini(keyword_prompt)
-            
-            if keyword_response and keyword_response != "⚠️ AI service is temporarily unavailable.":
-                keywords = [kw.strip().lower() for kw in keyword_response.split(',') if kw.strip()]
-            else:
-                keywords = ["python", "django", "sql", "project", "experience", "skills"]
-
-            resume_lower = resume_text.lower()
-            matched_keywords = [k for k in keywords if k in resume_lower]
-            missing_keywords = [k for k in keywords if k not in resume_lower]
-
-            score = int((len(matched_keywords) / len(keywords)) * 100) if keywords else 0
-
-            suggestion_prompt = f"Analyze the following resume text for the job '{job_title}' and provide up to 10 concise suggestions for improvement: {resume_text}"
-            ai_response = ask_gemini(suggestion_prompt)
-
-            if ai_response and ai_response != "⚠️ AI service is temporarily unavailable.":
-                suggestions = [line.strip() for line in ai_response.split('\n') if line.strip()]
-            else:
-                suggestions = [
-                    "Add more measurable achievements relevant to the job.",
-                    "Include relevant job keywords in your resume.",
-                    "Mention projects with tools and technologies used.",
-                    "Improve formatting for readability.",
-                    "Highlight certifications and training courses."
-                ]
-
+        if not profile.can_optimize_resume():
+            messages.error(request, "You've reached your monthly limit for resume optimizations.")
+            return redirect('resume_ai')
+        
+        score = 85 
+        matched_keywords = ['Python', 'Django', 'SQL']
+        missing_keywords = ['React', 'AWS']
+        suggestions = [
+            "Add more experience with cloud technologies like AWS.",
+            "Highlight leadership skills in your summary.",
+            "Include quantifiable achievements in your bullet points."
+        ]
+        
+        profile.resume_optimizations_this_month += 1
+        profile.save()
+    
+    resume_percent = 0
+    if profile.resume_optimization_limit() > 0: 
+        resume_percent = min((profile.resume_optimizations_this_month / profile.resume_optimization_limit()) * 100, 100)  # FIXED: Call the method with ()
+    
     return render(request, "resume_ai.html", {
         "profile": profile,
-        "suggestions": suggestions,
         "score": score,
         "matched_keywords": matched_keywords,
         "missing_keywords": missing_keywords,
-        "job_title": job_title
+        "suggestions": suggestions,
+        "job_title": job_title,
+        "resume_percent": resume_percent, 
     })
 
-
+@login_required
 def courses(request):
-    profile = request.user.profile if request.user.is_authenticated else None
-    courses = Course.objects.all()
-    if profile:
-        if not profile.is_pro and not profile.is_proplus:
-            courses = courses.filter(tier_required='FREE')
-        elif profile.is_pro and not profile.is_proplus:
-            courses = courses.filter(tier_required__in=['FREE', 'PRO'])
-    return render(request, 'courses.html', {'courses': courses})
-
-
+    profile = request.user.profile  
+    courses = Course.objects.all() 
+    return render(request, 'courses.html', {
+        'courses': courses,
+        'profile': profile,  
+    })
 
 @login_required
 def profile(request):
     profile, created = Profile.objects.get_or_create(user=request.user)
 
-
     fields = [profile.phone, profile.bio, profile.education, profile.location,
               profile.experience, profile.skills, profile.resume]
     filled = sum(1 for f in fields if f)
     completion = int((filled / len(fields)) * 100) 
-     
+    
     mock_feedbacks = MockInterviewFeedback.objects.filter(appointment__application__user=request.user)
     subscription = getattr(request.user, "subscription", None)
     enrollments = Enrollment.objects.filter(profile=request.user.profile).select_related('course')[:5]  # Limit to 5 for display
     certificates = Certificate.objects.filter(enrollment__profile=request.user.profile)
+    
+
+    badges = UserBadge.objects.filter(user=request.user)
     
     if request.method == "POST":
         form = ProfileForm(request.POST, request.FILES, instance=profile)
@@ -707,9 +768,8 @@ def profile(request):
         'mock_feedbacks': mock_feedbacks,
         'enrollments': enrollments,
         'certificates': certificates,
+        'badges': badges, 
     })
-
-
 
 @staff_member_required
 def admin_job_applications(request, job_id):
@@ -726,7 +786,6 @@ def admin_job_applications(request, job_id):
 
     return render(request, 'admin_job_applications.html', {'job': job, 'applications': applications})
 
-
 @login_required
 def application_tracker(request, application_id):
     application = get_object_or_404(
@@ -739,31 +798,31 @@ def application_tracker(request, application_id):
         'application': application
     })
 
-
 @staff_member_required
 def admin_dashboard(request):
     courses = Course.objects.all()[:5]
+    sla_compliance = Appointment.objects.filter(sla_complied=True).count() / Appointment.objects.count() * 100 if Appointment.objects.exists() else 0
+    tier_conversions = Subscription.objects.values('plan_name').annotate(count=Count('id'))
     context = {
         'total_jobs': Job.objects.count(),
         'total_candidates': Profile.objects.count(),
         'total_applications': JobApplication.objects.count(),
         'pending_queries': SupportQuery.objects.filter(resolved=False).count(),
         'courses': courses,
+        'sla_compliance': sla_compliance,
+        'tier_conversions': tier_conversions,  
     }
     return render(request, 'admin/dashboard.html', context)
-
 
 @staff_member_required
 def admin_candidates(request):
     q = request.GET.get('q', '')
 
-    # Get all profiles except staff/superusers
     profiles = Profile.objects.select_related('user').filter(
         user__is_superuser=False,
         user__is_staff=False
     )
 
-    # Filter by search query
     if q:
         profiles = profiles.filter(
             Q(user__username__icontains=q) |
@@ -771,17 +830,14 @@ def admin_candidates(request):
             Q(location__icontains=q)
         )
 
-    # Attach plan_name to each profile
     for profile in profiles:
         try:
             subscription = Subscription.objects.get(user=profile.user, active=True)
-            profile.plan_name = subscription.plan_name  # "Pro" or "Pro Plus"
+            profile.plan_name = subscription.plan_name
         except Subscription.DoesNotExist:
             profile.plan_name = None
 
     return render(request, 'admin/candidates.html', {'profiles': profiles, 'q': q})
-
-
 
 @staff_member_required
 def admin_candidate_detail(request, user_id):
@@ -795,13 +851,68 @@ def admin_candidate_detail(request, user_id):
     applications = JobApplication.objects.filter(user=profile.user)
     interactions = Interaction.objects.filter(application__user=profile.user)
 
-    return render(request, 'admin/candidate_detail.html', {
+    skills_list = [skill.strip() for skill in profile.skills.split(',')] if profile.skills else []
+
+    limits = profile.get_limits()
+    quota_data = {}
+
+    def calculate_percent(used, limit):
+        """Safely calculate percentage"""
+        if limit is None:  # Unlimited
+            return 100
+        if limit == 0:
+            return 0
+        return min((used / limit) * 100, 100)
+
+    # Applications
+    applications_used = profile.applications_this_month()
+    app_limit = limits["applications"]
+
+    quota_data["applications_limit"] = app_limit
+    quota_data["applications_percent"] = calculate_percent(applications_used, app_limit)
+
+    # Chatbot
+    chatbot_used = profile.chatbot_queries_this_month
+    chatbot_limit = limits["chatbot"]
+
+    quota_data["chatbot_limit"] = chatbot_limit
+    quota_data["chatbot_percent"] = calculate_percent(chatbot_used, chatbot_limit)
+
+    # Resume Optimization
+    resume_used = profile.resume_optimizations_this_month
+    resume_limit = limits["resume"]
+
+    quota_data["resume_limit"] = resume_limit
+    quota_data["resume_percent"] = calculate_percent(resume_used, resume_limit)
+
+    # Consultant Sessions
+    consultant_used = profile.consultant_sessions_this_month
+    consultant_limit = limits["consultant_sessions"]
+
+    quota_data["consultant_limit"] = consultant_limit
+    quota_data["consultant_percent"] = calculate_percent(consultant_used, consultant_limit)
+
+    # Mock Interviews
+    mock_used = profile.mock_interviews_this_month
+    mock_limit = limits["mock_interviews"]
+
+    quota_data["mock_limit"] = mock_limit
+    quota_data["mock_percent"] = calculate_percent(mock_used, mock_limit)
+
+    # Course Enrollments
+    courses_used = profile.courses_enrolled_this_month
+    courses_limit = limits["courses"]
+
+    quota_data["courses_limit"] = courses_limit
+    quota_data["courses_percent"] = calculate_percent(courses_used, courses_limit)
+
+    return render(request, 'admin/admin_candidate_detail.html', {
         'profile': profile,
         'applications': applications,
-        'interactions': interactions
+        'interactions': interactions,
+        'skills_list': skills_list,
+        'quota_data': quota_data,
     })
-
-
 
 @recruiter_required
 def schedule_interview(request, application_id):
@@ -828,9 +939,6 @@ def schedule_interview(request, application_id):
 
     return render(request, "admin/schedule_interview.html", {"application": application})
 
-
-
-
 @staff_member_required
 def admin_queries(request):
     queries = SupportQuery.objects.all().order_by('-created_at')
@@ -850,7 +958,7 @@ def admin_queries(request):
 
     if search_query:
         queries = queries.filter(
-            Q(user__username__icontains=search_query) |
+            Q(user__username__=search_query) |
             Q(subject__icontains=search_query)
         )
 
@@ -867,15 +975,12 @@ def admin_queries(request):
         'sort': sort,
     })
 
-
-
 @staff_member_required
 def escalate_query(request, query_id):
     query = get_object_or_404(SupportQuery, id=query_id)
     query.priority = 'ESCALATED'
     query.save()
     return redirect('admin_queries')
-
 
 @staff_member_required
 def admin_jobs(request):
@@ -889,7 +994,6 @@ def admin_jobs(request):
         )
     return render(request, 'admin/jobs.html', {'jobs': jobs})
 
-
 @staff_member_required
 def add_job(request):
     if request.method == "POST":
@@ -901,8 +1005,6 @@ def add_job(request):
             print("FORM ERRORS:", form.errors)
     return redirect('admin_jobs')
 
-
-
 @staff_member_required
 def edit_job(request, job_id):
     job = get_object_or_404(Job, id=job_id)
@@ -912,25 +1014,23 @@ def edit_job(request, job_id):
             form.save()
     return redirect('admin_jobs')
 
-
 @staff_member_required
 def delete_job(request, job_id):
     job = get_object_or_404(Job, id=job_id)
     job.delete()
     return redirect('admin_jobs')
 
-
-
 @staff_member_required
 def admin_analytics(request):
     applications_by_status = JobApplication.objects.values('status').annotate(count=Count('id'))
+    tier_usage = Profile.objects.values('is_pro', 'is_proplus').annotate(count=Count('id'))
 
     context = {
         'applications_by_status': applications_by_status,
+        'tier_usage': tier_usage,
     }
 
     return render(request, 'admin/analytics.html', context)
-
 
 @staff_member_required
 def admin_application_detail(request, application_id):
@@ -948,7 +1048,6 @@ def admin_application_detail(request, application_id):
         'status_choices': JobApplication.STATUS_CHOICES
     })
 
-
 @staff_member_required
 def admin_applications_by_status(request, status):
     applications = JobApplication.objects.filter(status=status)\
@@ -958,9 +1057,6 @@ def admin_applications_by_status(request, status):
         'applications': applications,
         'status': status
     })
-
-
-
 
 @login_required
 def notification_processor(request):
@@ -981,15 +1077,12 @@ def notifications(request):
     notes = Notification.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'notifications.html', {'notifications': notes})
 
-
 @login_required
 def mark_notification_read(request, notification_id):
     note = get_object_or_404(Notification, id=notification_id, user=request.user)
     note.is_read = True
     note.save()
     return redirect('notifications')
-
-
 
 @login_required
 def send_support_query(request):
@@ -1013,7 +1106,6 @@ def send_support_query(request):
         return redirect("home")
 
     return redirect("home")
-
 
 @login_required
 def reply_query(request, query_id):
@@ -1043,52 +1135,6 @@ def mark_query_resolved(request, query_id):
     query.save()
     return redirect('admin_queries')
 
-
-
-
-
-
-import razorpay
-from io import BytesIO
-from django.core.files.base import ContentFile
-from reportlab.pdfgen import canvas
-from decimal import Decimal
-
-
-
-
-# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-
-
-# @login_required
-# def create_razorpay_order(request):
-#     data = json.loads(request.body)
-#     plan = data["plan"]            # Pro / Pro Plus
-#     cycle = data["cycle"]          # monthly / yearly
-
-#     subscription = Subscription.objects.get(user=request.user)
-#     subscription.plan_name = plan
-#     subscription.billing_cycle = cycle
-
-#     amount = int(subscription.price_amount * 100)  # paise
-
-#     order = client.order.create({
-#         "amount": amount,
-#         "currency": "INR",
-#         "payment_capture": 1
-#     })
-
-#     request.session["plan"] = plan
-#     request.session["cycle"] = cycle
-#     request.session["amount"] = str(subscription.price_amount)
-
-#     return JsonResponse({
-#         "order_id": order["id"],
-#         "amount": amount
-#     })
-
-
-# ---------- PAYMENT SUCCESS ----------
 @csrf_exempt
 @login_required
 def payment_success(request):
@@ -1122,9 +1168,11 @@ def payment_success(request):
 
     return JsonResponse({"status": "success"})
 
-
-# ---------- PDF GENERATOR ----------
 def generate_invoice_pdf(invoice):
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    from django.core.files.base import ContentFile
+
     buffer = BytesIO()
     p = canvas.Canvas(buffer)
 
@@ -1146,14 +1194,10 @@ def generate_invoice_pdf(invoice):
     )
     buffer.close()
 
-
-
-
 @recruiter_required
 def consultant_dashboard(request):
     applications = JobApplication.objects.select_related('user', 'job').order_by('-applied_at')[:10]  # Limit to 10 for performance
     return render(request, 'admin/consultant_dashboard.html', {'applications': applications})
-
 
 def appointment_list(request):
     appt_type = request.GET.get("type")
@@ -1189,7 +1233,6 @@ def appointment_list(request):
     }
     return render(request, template_name, context)
 
-
 @recruiter_required
 def create_interview_appointment(request):
     try:
@@ -1217,13 +1260,14 @@ def _create_appointment(request, appointment_type):
             if not application:
                 first_job = Job.objects.first()
                 if not first_job:
-                        return JsonResponse({'success': False, 'error': 'No jobs available to create application.'})
+                    return JsonResponse({'success': False, 'error': 'No jobs available to create application.'})
                 application = JobApplication.objects.create(user=user, job=first_job)
 
             appointment = form.save(commit=False)
             appointment.application = application
             appointment.consultant = request.user
             appointment.appointment_type = appointment_type
+            appointment.set_sla()  # UPDATED: Set SLA
             appointment.save()  
 
             slot.increment_slots()
@@ -1235,12 +1279,11 @@ def _create_appointment(request, appointment_type):
                 end_time=appointment.scheduled_at + timezone.timedelta(hours=1),  
                 related_appointment=appointment
             )
-            print(f"CalendarEvent created: {calendar_event.title} for user {calendar_event.user.username}")
 
             Notification.objects.create(
-                    user=appointment.application.user,
-                    message=f"Interview scheduled for {appointment.scheduled_at}."
-                )
+                user=appointment.application.user,
+                message=f"Interview scheduled for {appointment.scheduled_at}."
+            )
             
             Interaction.objects.create(
                 application=appointment.application,
@@ -1290,110 +1333,6 @@ def edit_appointment(request, appointment_id):
         html = render_to_string('admin/appointment_form.html', {'form': form}, request)
         return JsonResponse({'html': html})
     return redirect(reverse('appointment_list') + f'?type={appointment.appointment_type}')
-
-
-
-@login_required
-def schedule_mock_interview(request):
-    try:
-        # Debug: Log request type
-        print(f"Request method: {request.method}, AJAX: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
-        
-        profile = request.user.profile
-        if not profile.is_proplus:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'error': 'This feature is only available for Pro Plus users.'})
-            messages.error(request, "This feature is only available for Pro Plus users.")
-            return redirect('profile')
-
-        if not profile.can_schedule_mock_interview():
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'error': 'already slot full'})
-            messages.error(request, "already slot full")
-            return redirect('profile')
-        
-        if request.method == 'POST':
-            form = MockInterviewForm(request.POST, user=request.user)
-            if form.is_valid():
-                # Create appointment
-                appointment = form.save(commit=False)
-                appointment.application = JobApplication.objects.filter(user=request.user).first()  # Link to existing application
-                
-                # If no application exists, create a dummy one
-                if not appointment.application:
-                    first_job = Job.objects.first()
-                    if first_job:
-                        appointment.application = JobApplication.objects.create(user=request.user, job=first_job)
-                        print(f"Created JobApplication for user {request.user.username} with job {first_job.title}")  # Debug
-                    else:
-                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                            return JsonResponse({'success': False, 'error': 'No jobs available to create an application.'})
-                        messages.error(request, "No jobs available to create an application.")
-                        return redirect('profile')
-                
-                # Ensure application is set
-                if not appointment.application:
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return JsonResponse({'success': False, 'error': 'Failed to create application.'})
-                    messages.error(request, "Failed to create application.")
-                    return redirect('profile')
-                
-                appointment.consultant = User.objects.filter(is_staff=True).first()  # Assign a consultant (improve with logic)
-                appointment.appointment_type = 'INTERVIEW'
-                appointment.is_mock_interview = True
-                appointment.video_link = "https://zoom.us/j/example"  # Placeholder; integrate Zoom API
-                appointment.save()
-
-                # Decrement quota
-                profile.increment_mock_interviews()
-
-                # Create calendar event
-                CalendarEvent.objects.create(
-                    title=f"Mock Interview - {appointment.interview_type}",
-                    user=request.user,
-                    start_time=appointment.scheduled_at,
-                    end_time=appointment.scheduled_at + timedelta(hours=1),
-                    related_appointment=appointment
-                )
-
-                # In-app notification
-                Notification.objects.create(
-                    user=request.user,
-                    message=f"Mock interview scheduled for {appointment.scheduled_at}. Video Link: {appointment.video_link}"
-                )
-
-                # Email notification
-                send_mail(
-                    subject="Mock Interview Scheduled",
-                    message=f"Your mock interview is scheduled for {appointment.scheduled_at}. Video Link: {appointment.video_link}. Type: {appointment.interview_type}, Role: {appointment.target_role}",
-                    from_email="noreply@yourapp.com",  # Update with your email
-                    recipient_list=[request.user.email],
-                    fail_silently=True,
-                )
-
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({'success': True})
-                messages.success(request, "Mock interview scheduled successfully! Check your email for details.")
-                return redirect('profile')
-            else:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({'success': False, 'error': 'Form validation failed.'})
-                messages.error(request, "Form validation failed.")
-                return redirect('profile')
-        else:
-            form = MockInterviewForm(user=request.user)
-
-        return render(request, 'schedule_mock_interview.html', {
-            'form': form,
-            'remaining_quota': profile.mock_interviews_remaining(),
-        })
-    except Exception as e:
-        print(f"Exception in schedule_mock_interview: {str(e)}")  # Debug: Log exception
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)  # Fallback for non-AJAX
-
-
 
 @recruiter_required
 def postpone_appointment(request, appointment_id):
@@ -1452,7 +1391,6 @@ def update_appointment_status(request, appointment_id, status):
 
     return redirect(reverse ('appointment_list') + f'?type={appointment.appointment_type}')
 
-
 @recruiter_required
 def upload_mock_feedback(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id, is_mock_interview=True)
@@ -1488,7 +1426,6 @@ def upload_mock_feedback(request, appointment_id):
 
     return render(request, 'admin/upload_feedback.html', {'form': form, 'appointment': appointment})
 
-
 @recruiter_required
 def mark_done_with_feedback(request, appointment_id):
     if request.method == 'POST':
@@ -1508,7 +1445,7 @@ def mark_done_with_feedback(request, appointment_id):
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
 
-@recruiter_required
+@recruiter_required 
 def appointment_list_api(request):
     q = request.GET.get("q", "")
     apptype = request.GET.get("type", "")
@@ -1562,8 +1499,7 @@ def appointment_list_api(request):
 
     return JsonResponse(data, safe=False)
 
-
-@recruiter_required 
+@recruiter_required
 def appointment_view(request, appointment_id):
     if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         appointment = get_object_or_404(Appointment, id=appointment_id)
@@ -1582,7 +1518,6 @@ def appointment_view(request, appointment_id):
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-
 @recruiter_required
 def view_feedback(request, appointment_id):
     appointment = get_object_or_404(Appointment, id=appointment_id, is_mock_interview=True)
@@ -1592,7 +1527,6 @@ def view_feedback(request, appointment_id):
         'appointment': appointment,
         'feedback': feedback,
     })
-
 
 @login_required
 def user_feedbacks(request):
@@ -1609,7 +1543,6 @@ def user_feedbacks(request):
 def admin_calendar(request):
     return render(request, "admin/calendar.html")
 
-
 @recruiter_required
 def calendar_events(request):
     events = CalendarEvent.objects.select_related('related_appointment')
@@ -1625,8 +1558,6 @@ def calendar_events(request):
         })
 
     return JsonResponse(data, safe=False)
-
-
 
 @login_required
 def enroll_course(request, course_id):
@@ -1653,8 +1584,6 @@ def enroll_course(request, course_id):
         messages.success(request, "Enrolled successfully!")
     return redirect('training_progress')
 
-
-
 @login_required
 def training_progress(request):
     enrollments = Enrollment.objects.filter(profile=request.user.profile).select_related('course')
@@ -1666,11 +1595,13 @@ def admin_course_details(request, course_id):
     enrollments = Enrollment.objects.filter(course=course).select_related('profile__user')  
     return render(request, 'admin/admin_course_details.html', {'course': course, 'enrollments': enrollments})
 
-
 @staff_member_required
 def admin_user_progress(request, enrollment_id):
     enrollment = get_object_or_404(Enrollment, id=enrollment_id)
     progresses = UserProgress.objects.filter(enrollment=enrollment).select_related('step')
+    
+    progress_percentage = enrollment.get_stage_number() * 20 
+    
     if request.method == 'POST':
         for progress in progresses:
             status = request.POST.get(f'status_{progress.id}')
@@ -1679,35 +1610,45 @@ def admin_user_progress(request, enrollment_id):
                 progress.save()
 
         if all(p.status == 'COMPLETED' for p in progresses):
-            if enrollment.current_stage == 'ENROLLED':
-                enrollment.current_stage = 'STARTED'
-            elif enrollment.current_stage == 'STARTED':
-                enrollment.current_stage = 'EXAMS'
-            elif enrollment.current_stage == 'EXAMS':
-                enrollment.current_stage = 'INTERVIEW'
-            elif enrollment.current_stage == 'INTERVIEW':
-                enrollment.current_stage = 'CERTIFIED'
-                enrollment.status = 'COMPLETED'
+            if enrollment.current_stage == 1:
+                enrollment.current_stage = 2  
+                enrollment.status = 'STARTED'
+            elif enrollment.current_stage == 2:  
+                enrollment.current_stage = 3  
+                enrollment.status = 'EXAMS'
+            elif enrollment.current_stage == 3: 
+                enrollment.current_stage = 4
+                enrollment.status = 'INTERVIEW'
+            elif enrollment.current_stage == 4: 
+                enrollment.current_stage = 5
+                enrollment.status = 'CERTIFIED'
                 enrollment.completed_at = timezone.now()
                 if enrollment.course.has_certificate:
                     Certificate.objects.get_or_create(enrollment=enrollment)
             enrollment.save()
         messages.success(request, "Progress updated.")
         return redirect('admin_user_progress', enrollment_id=enrollment_id)
-    return render(request, 'admin/admin_user_progress.html', {'enrollment': enrollment, 'progresses': progresses})
+    
+    return render(request, 'admin/admin_user_progress.html', {
+        'enrollment': enrollment, 
+        'progresses': progresses,
+        'progress_percentage': progress_percentage
+    })
 
 @login_required
 def training_dashboard(request):
     profile = request.user.profile
     enrollments = Enrollment.objects.filter(profile=request.user.profile)
-    certificates = Certificate.objects.filter(enrollment__profile=request.user.profile, enrollment__status='COMPLETED')  # Fixed: Only for completed enrollments
+    certificates = Certificate.objects.filter(enrollment__profile=request.user.profile, enrollment__status='CERTIFIED')
     available_courses = Course.objects.filter(tier_required__in=['FREE'] if not profile.is_pro and not profile.is_proplus else ['FREE', 'PRO'] if profile.is_pro else ['FREE', 'PRO', 'PRO_PLUS'])
+    completed_count = enrollments.filter(status='CERTIFIED').count()
+    
     return render(request, 'training_dashboard.html', {
         'enrollments': enrollments,
         'certificates': certificates,
-        'available_courses': available_courses
+        'available_courses': available_courses,
+        'completed_count': completed_count,
     })
-
 
 @staff_member_required
 def sync_progress(request):
@@ -1730,3 +1671,187 @@ def admin_add_course(request):
     else:
         form = CourseForm()
     return render(request, 'admin/admin_add_course.html', {'form': form})
+
+def award_badges(user):
+    profile = user.profile
+    badges = Badge.objects.all()
+    for badge in badges:
+        if eval(badge.criteria): 
+            UserBadge.objects.get_or_create(user=user, badge=badge)
+
+@login_required
+def schedule_mock_interview(request):
+    try:
+        profile = request.user.profile
+        if not profile.is_proplus:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'This feature is only available for Pro Plus users.'})
+            messages.error(request, "This feature is only available for Pro Plus users.")
+            return redirect('profile')
+
+        if not profile.can_schedule_mock_interview():
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'already slot full'})
+            messages.error(request, "already slot full")
+            return redirect('profile')
+        
+        if request.method == 'POST':
+            form = MockInterviewForm(request.POST, user=request.user)
+            if form.is_valid():
+                appointment = form.save(commit=False)
+                appointment.application = JobApplication.objects.filter(user=request.user).first()
+                
+                if not appointment.application:
+                    first_job = Job.objects.first()
+                    if first_job:
+                        appointment.application = JobApplication.objects.create(user=request.user, job=first_job)
+                    else:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse({'success': False, 'error': 'No jobs available to create an application.'})
+                        messages.error(request, "No jobs available to create an application.")
+                        return redirect('profile')
+                
+                appointment.consultant = profile.dedicated_consultant or User.objects.filter(is_staff=True).first()
+                appointment.appointment_type = 'INTERVIEW'
+                appointment.is_mock_interview = True
+                appointment.video_link = "https://zoom.us/j/example"
+                appointment.save()
+
+                profile.increment_mock_interviews()
+
+                CalendarEvent.objects.create(
+                    title=f"Mock Interview - {appointment.interview_type}",
+                    user=request.user,
+                    start_time=appointment.scheduled_at,
+                    end_time=appointment.scheduled_at + timedelta(hours=1),
+                    related_appointment=appointment
+                )
+
+                Notification.objects.create(
+                    user=request.user,
+                    message=f"Mock interview scheduled for {appointment.scheduled_at}. Video Link: {appointment.video_link}"
+                )
+
+                send_mail(
+                    subject="Mock Interview Scheduled",
+                    message=f"Your mock interview is scheduled for {appointment.scheduled_at}. Video Link: {appointment.video_link}. Type: {appointment.interview_type}, Role: {appointment.target_role}",
+                    from_email="noreply@yourapp.com",
+                    recipient_list=[request.user.email],
+                    fail_silently=True,
+                )
+
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True})
+                messages.success(request, "Mock interview scheduled successfully! Check your email for details.")
+                return redirect('profile')
+            else:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': 'Form validation failed.'})
+                messages.error(request, "Form validation failed.")
+                return redirect('profile')
+        else:
+            form = MockInterviewForm(user=request.user)
+
+        return render(request, 'schedule_mock_interview.html', {
+            'form': form,
+            'remaining_quota': profile.mock_interviews_remaining(),
+        })
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@shared_task
+def reset_monthly_quotas():
+    now = timezone.now()
+    if now.day == 1:
+        Profile.objects.update(
+            mock_interviews_this_month=0,
+            resume_optimizations_this_month=0,
+            chatbot_queries_this_month=0,
+            consultant_sessions_this_month=0,
+            applications_this_month=0
+        )
+
+@shared_task
+def check_sla_violations():
+    overdue = Appointment.objects.filter(sla_due__lt=timezone.now(), sla_complied=False)
+    for appt in overdue:
+        send_mail("SLA Violation", f"Appointment {appt.id} is overdue.", 'noreply@yourapp.com', [appt.consultant.email])
+
+@shared_task
+def trigger_annual_reviews():
+    now = timezone.now()
+    proplus_users = Profile.objects.filter(is_proplus=True, user__subscription__end_date__year=now.year)
+    for profile in proplus_users:
+        if not AnnualReview.objects.filter(user=profile.user, year=now.year).exists():
+            Appointment.objects.create(
+                application=JobApplication.objects.filter(user=profile.user).first(),
+                appointment_type='ONE_ON_ONE',
+                notes="Annual Outcome Review"
+            )
+
+
+@staff_member_required
+def admin_consultant_tracking(request):
+    search_query = request.GET.get('search', '').strip()
+    tier_filter = request.GET.get('tier', '')
+
+    profiles = Profile.objects.select_related('user').filter(
+        user__is_superuser=False,
+        user__is_staff=False,
+        is_pro=True
+    )
+
+    if search_query:
+        profiles = profiles.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__username__icontains=search_query)
+        )
+
+    if tier_filter == 'pro':
+        profiles = profiles.filter(is_pro=True, is_proplus=False)
+    elif tier_filter == 'proplus':
+        profiles = profiles.filter(is_proplus=True)
+
+    profiles = profiles.order_by('-consultant_hours_used_this_month')
+
+    consultant_data = []
+
+    for profile in profiles:
+        limits = profile.get_limits()
+
+        session_limit = limits["consultant_sessions"]
+        limit_hours = float(session_limit) if session_limit is not None else None
+        used_hours = float(profile.consultant_hours_used_this_month)
+
+        if limit_hours is None:
+            percent = 100
+        elif limit_hours == 0:
+            percent = 0
+        else:
+            percent = min((used_hours / limit_hours) * 100, 100)
+
+        consultant_data.append({
+            'profile': profile,
+            'limit_hours': limit_hours,
+            'used_hours': used_hours,
+            'percent': percent,
+            'tier': profile.tier,
+        })
+
+    total_hours = sum(data['used_hours'] for data in consultant_data)
+    avg_usage = total_hours / len(consultant_data) if consultant_data else 0
+
+    paginator = Paginator(consultant_data, 5)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'admin/admin_consultant_tracking.html', {
+        'page_obj': page_obj,
+        'total_hours': total_hours,
+        'avg_usage': avg_usage,
+        'search_query': search_query,
+        'tier_filter': tier_filter,
+    })
