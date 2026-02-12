@@ -134,159 +134,175 @@
     </div>
   </div>
 
-  <!-- Razorpay Integration Script -->
+  <!-- Razorpay Integration Script (Fixed) -->
   <script>
-    // Function to handle payment
-    function openRazorpay(orderId, amount, key, plan, cycle) {
-      const options = {
-        key: key,
-        amount: amount,
-        currency: 'INR',
-        name: 'VCS Career Services',
-        description: `Upgrade to ${plan} (${cycle})`,
-        order_id: orderId,
-        handler: function (response) {
-          // Send payment details to backend for verification
-          fetch('/payment-success/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
+    document.addEventListener('DOMContentLoaded', function() {
+      // Function to handle payment
+      function openRazorpay(orderId, amount, key, plan, cycle) {
+        const options = {
+          key: key,
+          amount: amount,
+          currency: 'INR',
+          name: 'VCS Career Services',
+          description: `Upgrade to ${plan} (${cycle})`,
+          order_id: orderId,
+          handler: function (response) {
+            // Send payment details to backend for verification
+            fetch('/payment-success/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
             })
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'success') {
+                alert('Payment successful! Your plan has been upgraded.');
+                window.location.href = '/subscription/';  // Redirect to subscription page
+              } else {
+                alert('Payment verification failed. Please contact support.');
+              }
+            })
+            .catch(err => {
+              alert('Error processing payment. Please try again.');
+            });
+          },
+          prefill: {
+            name: '{{ user.first_name }} {{ user.last_name }}',
+            email: '{{ user.email }}',
+          },
+          theme: {
+            color: '#3399cc'
+          }
+        };
+        const rzp = new Razorpay(options);
+        rzp.open();
+      }
+
+      // Handle form submissions (with null checks)
+      const proForm = document.getElementById('proForm');
+      const proPlusForm = document.getElementById('proPlusForm');
+
+      if (proForm) {
+        proForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          fetch('/upgrade/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+              'X-Requested-With': 'XMLHttpRequest'
+            }
           })
           .then(res => res.json())
           .then(data => {
-            if (data.status === 'success') {
-              alert('Payment successful! Your plan has been upgraded.');
-              window.location.href = '/subscription/';  // Redirect to subscription page
+            if (data.error) {
+              alert(data.error);
+            } else if (data.order_id) {
+              openRazorpay(data.order_id, data.amount, data.key, data.plan, data.billing_cycle);
             } else {
-              alert('Payment verification failed. Please contact support.');
+              alert('Error initiating payment.');
             }
           })
           .catch(err => {
-            alert('Error processing payment. Please try again.');
+            alert('Network error. Please try again.');
           });
-        },
-        prefill: {
-          name: '{{ user.first_name }} {{ user.last_name }}',
-          email: '{{ user.email }}',
-        },
-        theme: {
-          color: '#3399cc'
-        }
-      };
-      const rzp = new Razorpay(options);
-      rzp.open();
-    }
+        });
+      }
 
-    // Handle form submissions
-    document.getElementById('proForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const formData = new FormData(this);
-      fetch('/upgrade/', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          alert(data.error);
-        } else if (data.order_id) {
-          openRazorpay(data.order_id, data.amount, data.key, data.plan, data.billing_cycle);
-        } else {
-          alert('Error initiating payment.');
-        }
-      })
-      .catch(err => {
-        alert('Network error. Please try again.');
-      });
-    });
-
-    document.getElementById('proPlusForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const formData = new FormData(this);
-      fetch('/upgrade/', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          alert(data.error);
-        } else if (data.order_id) {
-          openRazorpay(data.order_id, data.amount, data.key, data.plan, data.billing_cycle);
-        } else {
-          alert('Error initiating payment.');
-        }
-      })
-      .catch(err => {
-        alert('Network error. Please try again.');
-      });
+      if (proPlusForm) {
+        proPlusForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          fetch('/upgrade/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              alert(data.error);
+            } else if (data.order_id) {
+              openRazorpay(data.order_id, data.amount, data.key, data.plan, data.billing_cycle);
+            } else {
+              alert('Error initiating payment.');
+            }
+          })
+          .catch(err => {
+            alert('Network error. Please try again.');
+          });
+        });
+      }
     });
   </script>
 
-  <!-- Toggle Script (unchanged) -->
+  <!-- Toggle Script (Fixed) -->
   <script>
-    const monthlyBtn = document.getElementById("monthlyBtn");
-    const yearlyBtn = document.getElementById("yearlyBtn");
+    document.addEventListener('DOMContentLoaded', function() {
+      const monthlyBtn = document.getElementById("monthlyBtn");
+      const yearlyBtn = document.getElementById("yearlyBtn");
 
-    const proMonthlyPrice = document.getElementById("proMonthlyPrice");
-    const proYearlyPrice = document.getElementById("proYearlyPrice");
-    const proMonthlyLabel = document.getElementById("proMonthlyLabel");
-    const proYearlyLabel = document.getElementById("proYearlyLabel");
+      const proMonthlyPrice = document.getElementById("proMonthlyPrice");
+      const proYearlyPrice = document.getElementById("proYearlyPrice");
+      const proMonthlyLabel = document.getElementById("proMonthlyLabel");
+      const proYearlyLabel = document.getElementById("proYearlyLabel");
 
-    const proPlusCard = document.getElementById("proPlusCard");
-    const proPlanInput = document.getElementById("proPlanInput");
+      const proPlusCard = document.getElementById("proPlusCard");
+      const proPlanInput = document.getElementById("proPlanInput");
 
-    // Default: Yearly
-    proMonthlyPrice.classList.add("hidden");
-    proYearlyPrice.classList.remove("hidden");
-    proMonthlyLabel.classList.add("hidden");
-    proYearlyLabel.classList.remove("hidden");
-    proPlusCard.classList.remove("hidden");
-    proPlanInput.value = "pro_yearly";
+      if (!monthlyBtn || !yearlyBtn || !proMonthlyPrice || !proYearlyPrice || !proMonthlyLabel || !proYearlyLabel || !proPlusCard || !proPlanInput) {
+        console.error('Toggle elements not found.');
+        return;
+      }
 
-    monthlyBtn.onclick = () => {
-      monthlyBtn.classList.add("bg-white", "text-indigo-700", "shadow");
-      yearlyBtn.classList.remove("bg-white", "text-indigo-700", "shadow");
-
-      proMonthlyPrice.classList.remove("hidden");
-      proYearlyPrice.classList.add("hidden");
-      proMonthlyLabel.classList.remove("hidden");
-      proYearlyLabel.classList.add("hidden");
-
-      // Hide Pro Plus for monthly
-      proPlusCard.classList.add("hidden");
-
-      proPlanInput.value = "pro_monthly";
-    };
-
-    yearlyBtn.onclick = () => {
-      yearlyBtn.classList.add("bg-white", "text-indigo-700", "shadow");
-      monthlyBtn.classList.remove("bg-white", "text-indigo-700", "shadow");
-
+      // Default: Yearly
       proMonthlyPrice.classList.add("hidden");
       proYearlyPrice.classList.remove("hidden");
       proMonthlyLabel.classList.add("hidden");
       proYearlyLabel.classList.remove("hidden");
-
       proPlusCard.classList.remove("hidden");
-
       proPlanInput.value = "pro_yearly";
-    };
+
+      monthlyBtn.onclick = () => {
+        monthlyBtn.classList.add("bg-white", "text-indigo-700", "shadow");
+        yearlyBtn.classList.remove("bg-white", "text-indigo-700", "shadow");
+
+        proMonthlyPrice.classList.remove("hidden");
+        proYearlyPrice.classList.add("hidden");
+        proMonthlyLabel.classList.remove("hidden");
+        proYearlyLabel.classList.add("hidden");
+
+        // Hide Pro Plus for monthly
+        proPlusCard.classList.add("hidden");
+
+        proPlanInput.value = "pro_monthly";
+      };
+
+      yearlyBtn.onclick = () => {
+        yearlyBtn.classList.add("bg-white", "text-indigo-700", "shadow");
+        monthlyBtn.classList.remove("bg-white", "text-indigo-700", "shadow");
+
+        proMonthlyPrice.classList.add("hidden");
+        proYearlyPrice.classList.remove("hidden");
+        proMonthlyLabel.classList.add("hidden");
+        proYearlyLabel.classList.remove("hidden");
+
+        proPlusCard.classList.remove("hidden");
+
+        proPlanInput.value = "pro_yearly";
+      };
+    });
   </script>
 
 </body>
