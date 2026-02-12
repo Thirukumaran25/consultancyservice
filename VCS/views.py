@@ -1457,7 +1457,7 @@ def generate_invoice_pdf(invoice):
 
     # Totals
     subtotal = invoice.amount
-    gst = subtotal * 0.18  # 18% GST (adjust as needed)
+    gst = subtotal * Decimal('0.18') # 18% GST (adjust as needed)
     total = subtotal + gst
 
     totals_data = [
