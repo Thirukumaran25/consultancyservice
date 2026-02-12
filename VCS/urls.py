@@ -17,7 +17,8 @@ from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
                     appointment_view,view_feedback,user_feedbacks,
                     enroll_course,training_progress,training_dashboard,
                     admin_course_details,admin_user_progress,sync_progress,
-                    admin_courses,admin_add_course,admin_consultant_tracking,)
+                    admin_courses,admin_add_course,admin_consultant_tracking,
+                    ratelimit_error,)
 
 urlpatterns = [
     path('', home, name='home'),
@@ -40,7 +41,9 @@ urlpatterns = [
     path("notifications/read/<int:notification_id>/", mark_notification_read, name="mark_notification_read"),
     path('admin/job/<int:job_id>/applications/', admin_job_applications, name='admin_job_applications'),
     path('application/<int:application_id>/',application_tracker,name='application_tracker'),
-    
+    path('ratelimit/', ratelimit_error, name='ratelimit_error'),
+
+
     path('chat/', candidate_chat, name='candidate_chat'),
     path('chat/send/', send_message, name='send_message'),
     path('chat/clear/', clear_chat, name='clear_chat'),

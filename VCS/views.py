@@ -10,7 +10,9 @@ from .models import (ChatQuestionAnswer,Invoice, CandidateChat,
                      SupportQuery,Notification,CalendarEvent,
                      MockInterviewFeedback,InterviewSlot,
                      Enrollment,Certificate,UserProgress,
-                     ChatEscalation, Badge, UserBadge, AnnualReview)  # UPDATED: Added new models
+                     ChatEscalation, Badge, UserBadge, AnnualReview,
+                     Referral,)
+
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -39,6 +41,12 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from celery import shared_task 
 from decimal import Decimal
+from .decorators import rate_limit
+import logging
+logger = logging.getLogger(__name__)
+
+
+
 
 def recruiter_required(view_func):
     return user_passes_test(
@@ -55,6 +63,11 @@ def highlight_keywords(text, keywords):
 FREE_CHAT_LIMIT = 10
 PRO_CHAT_LIMIT = 250  
 
+
+def ratelimit_error(request, exception):
+    return JsonResponse({'error': 'Rate limit exceeded. Try again later.'}, status=429)
+
+@rate_limit('5/m')
 @csrf_exempt
 @login_required
 def chatbot_api(request):
@@ -263,6 +276,7 @@ def chatfaq_delete(request, id):
 def home(request):
     return render(request, 'home.html', {})
 
+@rate_limit('10/h') 
 def user_login(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -286,6 +300,16 @@ def signup(request):
         form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
+            referral_code = request.GET.get('ref')  # e.g., /signup/?ref=username
+            if referral_code:
+                try:
+                    referrer = User.objects.get(username=referral_code)
+                    Referral.objects.create(referrer=referrer, referred=user)
+                except User.DoesNotExist:
+                    pass
+            # Award initial badges
+            profile = Profile.objects.get(user=user)
+            profile.award_badges()
             user.set_password(form.cleaned_data['password'])
             user.save()
 
@@ -435,6 +459,7 @@ def save_job(request, pk):
             job.saved_by.add(request.user)    
     return redirect('job_detail', pk=pk)
 
+
 @login_required
 def apply_job(request, pk):
     job = get_object_or_404(Job, pk=pk)
@@ -569,22 +594,19 @@ def profile(request):
     })
 
 @login_required
-@login_required
 def upgrade_plan(request):
     profile = Profile.objects.get(user=request.user)
 
     if request.method == "POST":
         plan = request.POST.get("plan")
-
-        # Determine plan details
         if plan == "pro_monthly":
             plan_name = "Pro"
             billing_cycle = "monthly"
-            amount = 99900  # Amount in paisa (₹999 * 100)
+            amount = 99900  
         elif plan == "pro_yearly":
             plan_name = "Pro"
             billing_cycle = "yearly"
-            amount = 899900  # Amount in paisa (₹8,999 * 100)
+            amount = 899900 
         elif plan == "pro_plus":
             if not Profile.can_upgrade_to_proplus():
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -593,18 +615,18 @@ def upgrade_plan(request):
                 return redirect('upgrade_plan')
             plan_name = "Pro Plus"
             billing_cycle = "yearly"
-            amount = 2999900  # Amount in paisa (₹29,999 * 100)
+            amount = 2999900 
         else:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'error': 'Invalid plan selected.'})
             return redirect("upgrade_plan")
 
-        # Create Razorpay order
+
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         order_data = {
             "amount": amount,
             "currency": "INR",
-            "payment_capture": "1"  # Auto-capture
+            "payment_capture": "1"  
         }
         try:
             order = client.order.create(data=order_data)
@@ -615,13 +637,13 @@ def upgrade_plan(request):
             messages.error(request, f"Payment initiation failed: {str(e)}")
             return redirect('upgrade_plan')
 
-        # Store plan details in session for payment_success
+
         request.session['plan'] = plan_name
         request.session['cycle'] = billing_cycle
-        request.session['amount'] = amount / 100  # Store in rupees for invoice
+        request.session['amount'] = amount / 100 
         request.session['razorpay_order_id'] = order_id
 
-        # Return JSON for AJAX requests
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'order_id': order_id,
@@ -634,7 +656,6 @@ def upgrade_plan(request):
         return redirect('upgrade_plan')
 
     return render(request, "upgrade.html")
-
 
 
 @login_required
@@ -707,26 +728,86 @@ def ai_resume_optimizer(request):
         job_title = request.POST.get('job_title', '')
         resume_text = request.POST.get('resume_text', '')
         
-
+        if not resume_text or not job_title:
+            messages.error(request, "Please provide both job title and resume text.")
+            return redirect('resume_ai')
+        
         if not profile.can_optimize_resume():
             messages.error(request, "You've reached your monthly limit for resume optimizations.")
             return redirect('resume_ai')
         
-        score = 85 
-        matched_keywords = ['Python', 'Django', 'SQL']
-        missing_keywords = ['React', 'AWS']
-        suggestions = [
-            "Add more experience with cloud technologies like AWS.",
-            "Highlight leadership skills in your summary.",
-            "Include quantifiable achievements in your bullet points."
-        ]
+        # AI Optimization Logic
+        try:
+            prompt = f"""
+            Analyze the following resume text for suitability to the job title "{job_title}".
+            Provide a match score out of 100, a list of matched keywords (skills/experiences present in the resume that fit the job), 
+            a list of missing keywords (important skills/experiences absent), and 3-5 personalized suggestions to improve the resume.
+            
+            Resume Text:
+            {resume_text}
+            
+            Format your response as:
+            Score: [number]
+            Matched: [comma-separated list]
+            Missing: [comma-separated list]
+            Suggestions: [bullet-point list]
+            """
+            
+            ai_response = ask_gemini(prompt)
+            
+            # Parse AI Response (simple text parsing; adjust if Gemini returns JSON)
+            lines = ai_response.strip().split('\n')
+            for line in lines:
+                if line.startswith('Score:'):
+                    try:
+                        score = int(line.split(':')[1].strip())
+                        score = max(0, min(100, score))  # Clamp to 0-100
+                    except ValueError:
+                        score = 85  # Fallback
+                elif line.startswith('Matched:'):
+                    matched_keywords = [kw.strip() for kw in line.split(':')[1].split(',') if kw.strip()]
+                elif line.startswith('Missing:'):
+                    missing_keywords = [kw.strip() for kw in line.split(':')[1].split(',') if kw.strip()]
+                elif line.startswith('Suggestions:'):
+                    suggestions_text = line.split(':')[1].strip()
+                    suggestions = [s.strip('- ').strip() for s in suggestions_text.split('\n') if s.strip()]
+            
+            # Ensure defaults if parsing fails
+            if score is None:
+                score = 85
+            if not matched_keywords:
+                matched_keywords = ['Python', 'Django', 'SQL']
+            if not missing_keywords:
+                missing_keywords = ['React', 'AWS']
+            if not suggestions:
+                suggestions = [
+                    "Add more experience with cloud technologies like AWS.",
+                    "Highlight leadership skills in your summary.",
+                    "Include quantifiable achievements in your bullet points."
+                ]
         
+        except Exception as e:
+            # AI failed: Log error and use defaults
+            logger.error(f"AI resume optimization failed for user {request.user.username}: {str(e)}")
+            score = 85
+            matched_keywords = ['Python', 'Django', 'SQL']
+            missing_keywords = ['React', 'AWS']
+            suggestions = [
+                "Add more experience with cloud technologies like AWS.",
+                "Highlight leadership skills in your summary.",
+                "Include quantifiable achievements in your bullet points."
+            ]
+            messages.warning(request, "AI optimization is temporarily unavailable. Using default analysis.")
+        
+        # Increment quota after successful processing
         profile.resume_optimizations_this_month += 1
         profile.save()
     
+    # Calculate quota percentage
+    resume_limit = profile.get_limits()["resume"]
     resume_percent = 0
-    if profile.resume_optimization_limit() > 0: 
-        resume_percent = min((profile.resume_optimizations_this_month / profile.resume_optimization_limit()) * 100, 100)  # FIXED: Call the method with ()
+    if resume_limit > 0:
+        resume_percent = min((profile.resume_optimizations_this_month / resume_limit) * 100, 100)
     
     return render(request, "resume_ai.html", {
         "profile": profile,
@@ -1193,6 +1274,7 @@ def payment_success(request):
     try:
         client.utility.verify_payment_signature(params_dict)
     except Exception as e:
+        logger.error(f"Payment verification failed for user {request.user.username}: {str(e)}")
         return JsonResponse({'status': 'error', 'message': 'Payment verification failed'})
 
     # Retrieve plan details from session

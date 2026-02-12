@@ -227,6 +227,11 @@ class Profile(models.Model):
         setattr(self, field_name, getattr(self, field_name) + 1)
         self.save(update_fields=[field_name])
 
+    def award_badges(self):
+        badges = Badge.objects.all()
+        for badge in badges:
+            if eval(badge.criteria):
+                UserBadge.objects.get_or_create(user=self.user, badge=badge)
 
     @staticmethod
     def proplus_subscriber_count():
@@ -520,7 +525,8 @@ class ChatEscalation(models.Model):
 class Badge(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
-    criteria = models.JSONField() 
+    criteria = models.JSONField()
+    icon = models.ImageField(upload_to='badges/', blank=True) 
 
 class UserBadge(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -544,3 +550,10 @@ class SavedJob(models.Model):
 
     def __str__(self):
         return f"{self.user.username} saved {self.job.job_title}"
+    
+
+class Referral(models.Model):
+    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referrals_made')
+    referred = models.OneToOneField(User, on_delete=models.CASCADE, related_name='referred_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+    reward_given = models.BooleanField(default=False)

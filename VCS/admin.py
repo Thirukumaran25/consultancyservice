@@ -29,7 +29,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'tier', 'is_pro', 'is_proplus', 'location', 'phone')
     search_fields = ('user__username', 'skills', 'location')
-    list_filter = ('is_pro', 'is_proplus', 'tier')
+    list_filter = ('is_pro', 'is_proplus')  # FIXED: Removed 'tier' (it's a property, not a field)
     readonly_fields = ('applications_this_month', 'chatbot_queries_this_month', 'resume_optimizations_this_month', 'consultant_sessions_this_month', 'mock_interviews_this_month', 'courses_enrolled_this_month')
 
 # Custom admin for Appointment

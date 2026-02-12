@@ -170,5 +170,73 @@
     </section>
 
 </section>
-
+<!-- Modern Referral Section -->
+<div class="mt-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 shadow-lg text-white">
+  <div class="flex items-center mb-4">
+    <svg class="w-8 h-8 mr-3" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <h2 class="text-2xl font-bold">Refer & Earn Rewards</h2>
+  </div>
+  <p class="mb-4 text-blue-100">Share your referral link with friends. When they sign up, you'll both get exclusive perks!</p>
+  
+  <!-- Referral Link Display -->
+  <div class="bg-white bg-opacity-20 rounded-lg p-4 mb-4">
+    <label class="block text-sm font-medium mb-2">Your Referral Link:</label>
+    <div class="flex items-center">
+      <input id="referralLink" type="text" value="{{ request.scheme }}://{{ request.get_host }}{% url 'signup' %}?ref={{ user.username }}" 
+             class="flex-1 px-3 py-2 bg-white text-gray-800 rounded-l-lg border-0 focus:ring-2 focus:ring-blue-300" readonly>
+      <button id="copyBtn" class="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-r-lg transition duration-200 flex items-center" 
+              onclick="copyToClipboard()">
+        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"></path>
+          <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"></path>
+        </svg>
+        Copy
+      </button>
+    </div>
+    <p id="copyMessage" class="text-green-300 text-sm mt-2 hidden">Link copied to clipboard!</p>
+  </div>
+  
+  <!-- Social Sharing Buttons -->
+  <div class="flex flex-wrap gap-3">
+    <a href="https://wa.me/?text=Join VCS Career Services with my referral: {{ request.scheme }}://{{ request.get_host }}{% url 'signup' %}?ref={{ user.username }}" 
+       target="_blank" class="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition duration-200">
+      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+      </svg>
+      Share on WhatsApp
+    </a>
+    <a href="mailto:?subject=Join VCS Career Services&body=Check out this career platform: {{ request.scheme }}://{{ request.get_host }}{% url 'signup' %}?ref={{ user.username }}" 
+       class="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition duration-200">
+      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+      </svg>
+      Share via Email
+    </a>
+    <a href="https://twitter.com/intent/tweet?text=Join VCS Career Services with my referral: {{ request.scheme }}://{{ request.get_host }}{% url 'signup' %}?ref={{ user.username }}" 
+       target="_blank" class="flex items-center px-4 py-2 bg-sky-500 hover:bg-sky-600 rounded-lg transition duration-200">
+      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M6.29 18.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0020 3.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.073 4.073 0 01.8 7.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 010 16.407a11.616 11.616 0 006.29 1.84"></path>
+      </svg>
+      Share on Twitter
+    </a>
+  </div>
+</div>
+<!-- JavaScript for Copy Functionality -->
+<script>
+function copyToClipboard() {
+  const linkInput = document.getElementById('referralLink');
+  linkInput.select();
+  linkInput.setSelectionRange(0, 99999); // For mobile
+  navigator.clipboard.writeText(linkInput.value).then(() => {
+    const message = document.getElementById('copyMessage');
+    message.classList.remove('hidden');
+    setTimeout(() => message.classList.add('hidden'), 2000); // Hide after 2 seconds
+  }).catch(err => {
+    alert('Failed to copy link. Please copy manually.');
+  });
+}
+</script>
 {% endblock %}
