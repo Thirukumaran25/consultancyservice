@@ -569,70 +569,73 @@ def profile(request):
     })
 
 @login_required
+@login_required
 def upgrade_plan(request):
     profile = Profile.objects.get(user=request.user)
-    invoice_url = None
 
     if request.method == "POST":
         plan = request.POST.get("plan")
 
+        # Determine plan details
         if plan == "pro_monthly":
-            profile.is_pro = True
-            profile.is_proplus = False
             plan_name = "Pro"
             billing_cycle = "monthly"
-            duration_days = 30
-
+            amount = 99900  # Amount in paisa (₹999 * 100)
         elif plan == "pro_yearly":
-            profile.is_pro = True
-            profile.is_proplus = False
             plan_name = "Pro"
             billing_cycle = "yearly"
-            duration_days = 365
-
+            amount = 899900  # Amount in paisa (₹8,999 * 100)
         elif plan == "pro_plus":
             if not Profile.can_upgrade_to_proplus():
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'error': 'Pro Plus limit reached. Added to waitlist.'})
                 messages.error(request, "Pro Plus limit reached. Added to waitlist.")
                 return redirect('upgrade_plan')
-            profile.is_pro = True
-            profile.is_proplus = True
             plan_name = "Pro Plus"
             billing_cycle = "yearly"
-            duration_days = 365
-
+            amount = 2999900  # Amount in paisa (₹29,999 * 100)
         else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': 'Invalid plan selected.'})
             return redirect("upgrade_plan")
 
-        profile.save()
+        # Create Razorpay order
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        order_data = {
+            "amount": amount,
+            "currency": "INR",
+            "payment_capture": "1"  # Auto-capture
+        }
+        try:
+            order = client.order.create(data=order_data)
+            order_id = order['id']
+        except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': f'Payment initiation failed: {str(e)}'})
+            messages.error(request, f"Payment initiation failed: {str(e)}")
+            return redirect('upgrade_plan')
 
-        # Update or create subscription
-        subscription, created = Subscription.objects.update_or_create(
-            user=request.user,
-            defaults={
-                "plan_name": plan_name,
-                "billing_cycle": billing_cycle,
-                "start_date": date.today(),
-                "end_date": date.today() + timedelta(days=duration_days),
-                "active": True
-            }
-        )
+        # Store plan details in session for payment_success
+        request.session['plan'] = plan_name
+        request.session['cycle'] = billing_cycle
+        request.session['amount'] = amount / 100  # Store in rupees for invoice
+        request.session['razorpay_order_id'] = order_id
 
-        # Create new invoice (mark as paid after upgrade)
-        invoice=Invoice.objects.create(
-            user=request.user,
-            subscription=subscription,
-            amount=subscription.price_amount,
-            paid=True
-        )
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'order_id': order_id,
+                'amount': amount,
+                'key': settings.RAZORPAY_KEY_ID,
+                'plan': plan_name,
+                'billing_cycle': billing_cycle,
+            })
 
-        generate_invoice_pdf(invoice)
-        invoice_url = invoice.file.url
+        return redirect('upgrade_plan')
 
-        return redirect("subscription")
+    return render(request, "upgrade.html")
 
-    return render(request, "upgrade.html",{
-            "invoice_url": invoice_url
-        })
+
 
 @login_required
 def subscription_dashboard(request):
@@ -1172,14 +1175,42 @@ def mark_query_resolved(request, query_id):
 @csrf_exempt
 @login_required
 def payment_success(request):
-    data = json.loads(request.body)
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
 
+    data = json.loads(request.body)
+    razorpay_order_id = data.get('razorpay_order_id')
+    razorpay_payment_id = data.get('razorpay_payment_id')
+    razorpay_signature = data.get('razorpay_signature')
+
+    # Verify payment signature
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    params_dict = {
+        'razorpay_order_id': razorpay_order_id,
+        'razorpay_payment_id': razorpay_payment_id,
+        'razorpay_signature': razorpay_signature
+    }
+    try:
+        client.utility.verify_payment_signature(params_dict)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': 'Payment verification failed'})
+
+    # Retrieve plan details from session
     plan = request.session.get("plan")
     cycle = request.session.get("cycle")
     amount = Decimal(request.session.get("amount"))
 
-    duration = 30 if cycle == "monthly" else 365
+    # Update profile and create subscription
+    profile = request.user.profile
+    if plan == "Pro":
+        profile.is_pro = True
+        profile.is_proplus = False
+    elif plan == "Pro Plus":
+        profile.is_pro = True
+        profile.is_proplus = True
+    profile.save()
 
+    duration = 30 if cycle == "monthly" else 365
     subscription, _ = Subscription.objects.update_or_create(
         user=request.user,
         defaults={
@@ -1191,36 +1222,168 @@ def payment_success(request):
         }
     )
 
+    # Create invoice
     invoice = Invoice.objects.create(
         user=request.user,
         subscription=subscription,
         amount=amount,
         paid=True
     )
-
     generate_invoice_pdf(invoice)
+
+    # Clear session
+    request.session.pop('plan', None)
+    request.session.pop('cycle', None)
+    request.session.pop('amount', None)
+    request.session.pop('razorpay_order_id', None)
 
     return JsonResponse({"status": "success"})
 
 def generate_invoice_pdf(invoice):
     from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
     from reportlab.pdfgen import canvas
     from django.core.files.base import ContentFile
+    from django.conf import settings
+    import os
 
     buffer = BytesIO()
-    p = canvas.Canvas(buffer)
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
 
-    p.drawString(100, 800, "SUBSCRIPTION INVOICE")
-    p.drawString(100, 770, f"Invoice No: {invoice.invoice_number}")
-    p.drawString(100, 740, f"User: {invoice.user.username}")
-    p.drawString(100, 710, f"Plan: {invoice.subscription.plan_name}")
-    p.drawString(100, 680, f"Billing Cycle: {invoice.subscription.billing_cycle}")
-    p.drawString(100, 650, f"Amount: ₹{invoice.amount}")
-    p.drawString(100, 620, f"Date: {invoice.date.strftime('%d-%m-%Y')}")
+    # Custom styles
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading1'],
+        fontSize=20,
+        alignment=1,  # Center
+        spaceAfter=20,
+        textColor=colors.darkblue
+    )
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=0,
+        spaceAfter=10
+    )
+    table_header_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=1,
+        fontName='Helvetica-Bold'
+    )
+    table_cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=0
+    )
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        alignment=1,
+        textColor=colors.gray
+    )
 
-    p.showPage()
-    p.save()
+    elements = []
 
+    # Company Header with Logo
+    logo_path = os.path.join(settings.STATIC_ROOT, 'logo.png')  # Replace with your logo path
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=1*inch, height=1*inch)
+        elements.append(logo)
+    elements.append(Spacer(1, 0.2*inch))
+
+    company_info = """
+    <b>VCS Career Services Pvt. Ltd.</b><br/>
+    123 Career Lane, Tech City<br/>
+    Bangalore, Karnataka 560001<br/>
+    India<br/>
+    GSTIN: 29ABCDE1234F1Z5<br/>
+    Email: support@vcs.com | Phone: +91-9876543210
+    """
+    elements.append(Paragraph(company_info, header_style))
+    elements.append(Spacer(1, 0.5*inch))
+
+    # Invoice Title
+    elements.append(Paragraph("INVOICE", title_style))
+    elements.append(Spacer(1, 0.3*inch))
+
+    # Invoice Details
+    invoice_details = f"""
+    <b>Invoice Number:</b> {invoice.invoice_number}<br/>
+    <b>Invoice Date:</b> {invoice.date.strftime('%d-%m-%Y')}<br/>
+    <b>Due Date:</b> {invoice.date.strftime('%d-%m-%Y')} (Immediate)<br/>
+    <b>Payment Status:</b> {'Paid' if invoice.paid else 'Pending'}
+    """
+    elements.append(Paragraph(invoice_details, header_style))
+    elements.append(Spacer(1, 0.3*inch))
+
+    # Bill To Section
+    bill_to = f"""
+    <b>Bill To:</b><br/>
+    {invoice.user.username}<br/>
+    {invoice.user.email}<br/>
+    (Subscription User)
+    """
+    elements.append(Paragraph(bill_to, header_style))
+    elements.append(Spacer(1, 0.3*inch))
+
+    # Itemized Table
+    data = [
+        ['Description', 'Quantity', 'Unit Price', 'Total'],
+        [f"{invoice.subscription.plan_name} Subscription ({invoice.subscription.billing_cycle})", '1', f"₹{invoice.amount}", f"₹{invoice.amount}"],
+    ]
+    table = Table(data, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.3*inch))
+
+    # Totals
+    subtotal = invoice.amount
+    gst = subtotal * 0.18  # 18% GST (adjust as needed)
+    total = subtotal + gst
+
+    totals_data = [
+        ['', 'Subtotal:', f"₹{subtotal}"],
+        ['', 'GST (18%):', f"₹{gst:.2f}"],
+        ['', 'Total:', f"₹{total:.2f}"],
+    ]
+    totals_table = Table(totals_data, colWidths=[3*inch, 1.5*inch, 1.5*inch])
+    totals_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (1, 0), (-1, -1), 'Helvetica-Bold'),
+        ('GRID', (1, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(totals_table)
+    elements.append(Spacer(1, 0.5*inch))
+
+    # Footer
+    footer_text = """
+    Thank you for choosing VCS Career Services!<br/>
+    Payment Terms: Immediate payment required. For queries, contact support@vcs.com.<br/>
+    This is a computer-generated invoice and does not require a signature.
+    """
+    elements.append(Paragraph(footer_text, footer_style))
+
+    # Build PDF
+    doc.build(elements)
     buffer.seek(0)
     invoice.file.save(
         f"{invoice.invoice_number}.pdf",

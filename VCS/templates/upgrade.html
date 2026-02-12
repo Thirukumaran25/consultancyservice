@@ -3,6 +3,7 @@
 {% block content %}
 <head>
   <title>Upgrade Plan</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 
 <body class="bg-gradient-to-br from-indigo-700 to-purple-800 min-h-screen flex flex-col items-center justify-center px-4 py-12">
@@ -71,10 +72,10 @@
             Current Plan
           </button>
           {% else %}
-          <form method="POST">
+          <form method="POST" id="proForm">
             {% csrf_token %}
             <input type="hidden" name="plan" id="proPlanInput" value="pro_yearly">
-            <button class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition text-sm">
+            <button type="submit" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition text-sm">
               Upgrade to Pro
             </button>
           </form>
@@ -118,10 +119,10 @@
             Current Plan
           </button>
           {% else %}
-          <form method="POST">
+          <form method="POST" id="proPlusForm">
             {% csrf_token %}
             <input type="hidden" name="plan" value="pro_plus">
-            <button class="w-full py-2 rounded-xl bg-pink-500 hover:opacity-90 text-white font-semibold transition text-sm">
+            <button type="submit" class="w-full py-2 rounded-xl bg-pink-500 hover:opacity-90 text-white font-semibold transition text-sm">
               Upgrade to Pro Plus
             </button>
           </form>
@@ -133,7 +134,111 @@
     </div>
   </div>
 
-  <!-- Toggle Script -->
+  <!-- Razorpay Integration Script -->
+  <script>
+    // Function to handle payment
+    function openRazorpay(orderId, amount, key, plan, cycle) {
+      const options = {
+        key: key,
+        amount: amount,
+        currency: 'INR',
+        name: 'VCS Career Services',
+        description: `Upgrade to ${plan} (${cycle})`,
+        order_id: orderId,
+        handler: function (response) {
+          // Send payment details to backend for verification
+          fetch('/payment-success/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'success') {
+              alert('Payment successful! Your plan has been upgraded.');
+              window.location.href = '/subscription/';  // Redirect to subscription page
+            } else {
+              alert('Payment verification failed. Please contact support.');
+            }
+          })
+          .catch(err => {
+            alert('Error processing payment. Please try again.');
+          });
+        },
+        prefill: {
+          name: '{{ user.first_name }} {{ user.last_name }}',
+          email: '{{ user.email }}',
+        },
+        theme: {
+          color: '#3399cc'
+        }
+      };
+      const rzp = new Razorpay(options);
+      rzp.open();
+    }
+
+    // Handle form submissions
+    document.getElementById('proForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      fetch('/upgrade/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else if (data.order_id) {
+          openRazorpay(data.order_id, data.amount, data.key, data.plan, data.billing_cycle);
+        } else {
+          alert('Error initiating payment.');
+        }
+      })
+      .catch(err => {
+        alert('Network error. Please try again.');
+      });
+    });
+
+    document.getElementById('proPlusForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      fetch('/upgrade/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else if (data.order_id) {
+          openRazorpay(data.order_id, data.amount, data.key, data.plan, data.billing_cycle);
+        } else {
+          alert('Error initiating payment.');
+        }
+      })
+      .catch(err => {
+        alert('Network error. Please try again.');
+      });
+    });
+  </script>
+
+  <!-- Toggle Script (unchanged) -->
   <script>
     const monthlyBtn = document.getElementById("monthlyBtn");
     const yearlyBtn = document.getElementById("yearlyBtn");
