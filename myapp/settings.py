@@ -51,7 +51,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
-SITE_ID = 1 
+
 
 # Application definition
 
@@ -66,9 +66,10 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    # 'django.contrib.sites',
+    'django.contrib.sites',
     'allauth.socialaccount.providers.google',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -92,11 +93,11 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'VCS.context_processors.notification_count',
-                'django.template.context_processors.request',
             ],
         },
     },
@@ -161,6 +162,10 @@ LOGOUT_REDIRECT_URL = '/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+SITE_ID = 1 
+SITE_ID = 2
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+SOCIALACCOUNT_QUERY_EMAIL = True
 
 
 
@@ -170,7 +175,6 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
-
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'EMAIL_AUTHENTICATION': True,
@@ -178,8 +182,12 @@ SOCIALACCOUNT_PROVIDERS = {
             'profile',
             'email',
         ],
+        'AUTH_PARAMS': {'access_type': 'online'},
     }   
 }
+
+
+
 
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 

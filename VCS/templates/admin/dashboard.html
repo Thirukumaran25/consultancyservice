@@ -14,7 +14,7 @@
 
 <!-- Jobs -->
 <a href="{% url 'admin_jobs' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-700 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -29,7 +29,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-7
 
 <!-- Candidates -->
 <a href="{% url 'admin_candidates' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-green-500 to-green-700 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -44,7 +44,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-green-500 to-green
 
 <!-- Applications -->
 <a href="{% url 'admin_analytics' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-yellow-400 to-yellow-600 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -59,7 +59,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-yellow-400 to-yell
 
 <!-- Queries -->
 <a href="{% url 'admin_queries' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-red-500 to-red-700 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -74,7 +74,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-red-500 to-red-700
 
 <!-- Consultant Dashboard -->
 <a href="{% url 'consultant_dashboard' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-purple-700 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -89,7 +89,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-purp
 
 <!-- Consultant Calendar -->
 <a href="{% url 'admin_calendar' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-700 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -103,7 +103,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indi
 </a>
 
 <!-- Training Courses -->
-<a href="{% url 'admin_courses' %}" class="block p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-orange-500 to-orange-700 text-white transition hover:shadow-xl">
+<a href="{% url 'admin_courses' %}" class="block p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
     <div class="flex items-center justify-between">
         <div>
             <p class="text-xs sm:text-sm opacity-80">Training</p>
@@ -116,7 +116,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-purple-500 to-indi
 
 <!-- Consultant Tracking (Styled Card) -->
 <a href="{% url 'admin_consultant_tracking' %}"
-class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-pink-500 to-purple-700 text-white transition hover:shadow-xl">
+class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white transition hover:shadow-xl">
 
 <div class="flex items-center justify-between">
     <div>
@@ -139,12 +139,12 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-pink-500 to-purple
         <i class='bx bx-line-chart text-blue-600'></i> Quick Stats
     </h3>
     <ul class="space-y-2 text-sm text-gray-600">
-        <li>✅ Active Jobs: {{ total_jobs }}</li>
-        <li>✅ Registered Candidates: {{ total_candidates }}</li>
-        <li>✅ Total Applications: {{ total_applications }}</li>
-        <li>✅ Pending Queries: {{ pending_queries }}</li>
+        <li><i class='bx bx-check text-green-600'></i> Active Jobs: {{ total_jobs }}</li>
+        <li><i class='bx bx-check text-green-600'></i> Registered Candidates: {{ total_candidates }}</li>
+        <li><i class='bx bx-check text-green-600'></i> Total Applications: {{ total_applications }}</li>
+        <li><i class='bx bx-check text-green-600'></i> Pending Queries: {{ pending_queries }}</li>
         <!-- NEW: Added SLA Compliance -->
-        <li>✅ SLA Compliance: {% if sla_compliance %}{{ sla_compliance|floatformat:1 }}%{% else %}N/A{% endif %}</li>
+        <li><i class='bx bx-check text-green-600'></i> SLA Compliance: {% if sla_compliance %}{{ sla_compliance|floatformat:1 }}%{% else %}N/A{% endif %}</li>
     </ul>
 </div>
 
@@ -155,7 +155,7 @@ class="p-5 sm:p-6 rounded-2xl shadow-lg bg-gradient-to-r from-pink-500 to-purple
     </h3>
     <ul class="space-y-2 text-sm text-gray-600">
         {% for conversion in tier_conversions %}
-            <li>✅ {{ conversion.plan_name }}: {{ conversion.count }}</li>
+            <li><i class='bx bx-check text-green-600'></i> {{ conversion.plan_name }}: {{ conversion.count }}</li>
         {% empty %}
             <li>No conversions data available.</li>
         {% endfor %}

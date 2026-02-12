@@ -106,3 +106,5 @@ urlpatterns = [
 
     path('dashboard/consultant-tracking/',admin_consultant_tracking, name='admin_consultant_tracking'),
 ]
+
+

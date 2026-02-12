@@ -276,30 +276,47 @@ def chatfaq_delete(request, id):
 def home(request):
     return render(request, 'home.html', {})
 
-@rate_limit('10/h') 
+@rate_limit('10/h')
 def user_login(request):
+    next_url = request.GET.get("next") or request.POST.get("next")
+
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
 
         user = authenticate(request, username=username, password=password)
 
-        if user is not None:
+        if user:
             login(request, user)
-            if user.is_superuser or user.is_staff:
-                return redirect('admin_dashboard')
-            else:
-                return redirect('home')
-        else:
-            return render(request, "registration/login.html", {"error": "Invalid credentials. Please sign up first."})
 
-    return render(request, "registration/login.html")
+            if next_url:
+                return redirect(next_url)
+
+            return redirect(
+                'admin_dashboard' if user.is_staff else 'home'
+            )
+
+        return render(
+            request,
+            "registration/login.html",
+            {
+                "error": "Invalid username or password.",
+                "next": next_url
+            }
+        )
+
+    return render(request, "registration/login.html", {"next": next_url})
+
 
 def signup(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.save()  # Save the user first
+            
+            # Handle referral after user is saved
             referral_code = request.GET.get('ref')  # e.g., /signup/?ref=username
             if referral_code:
                 try:
@@ -307,16 +324,17 @@ def signup(request):
                     Referral.objects.create(referrer=referrer, referred=user)
                 except User.DoesNotExist:
                     pass
-            # Award initial badges
-            profile = Profile.objects.get(user=user)
+            
+            # Get or create profile (ensures it exists even if signal fails)
+            profile, created = Profile.objects.get_or_create(user=user)
             profile.award_badges()
-            user.set_password(form.cleaned_data['password'])
-            user.save()
-
+            
+            # Authenticate and login
             user = authenticate(username=user.username, password=form.cleaned_data['password'])
             if user is not None:
-                login(request, user) 
-
+                login(request, user)
+                
+                # Send welcome email
                 send_mail(
                     subject="Welcome to VCS Career Services!",
                     message=f"Hi {user.username},\n\nWelcome to VCS! Your account has been created successfully. Start exploring jobs and building your career.\n\nBest,\nVCS Team",
@@ -324,7 +342,7 @@ def signup(request):
                     recipient_list=[user.email],
                     fail_silently=True,
                 )
-
+                
                 return redirect('/')
     else:
         form = SignupForm()
