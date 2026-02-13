@@ -72,92 +72,102 @@ def ratelimit_error(request, exception):
 @login_required
 def chatbot_api(request):
     if request.method != 'POST':
-        return JsonResponse({'reply': "Invalid request."})
+        return JsonResponse({'reply': "Invalid request."}, status=400)
+    
     try:
         data = json.loads(request.body)
         user_question = data.get("message", "").strip()
-    except Exception:
+    except json.JSONDecodeError:
         return JsonResponse({"reply": "Invalid JSON data"}, status=400)
-
+    
     if not user_question:
-        return JsonResponse({'reply': "Please enter a question."})
+        return JsonResponse({'reply': "Please enter a question."}, status=400)
     
-    profile, _ = Profile.objects.get_or_create(user=request.user)
-    if not profile.can_use_chatbot():
-        return JsonResponse({
-            'reply': "⚠️ You have reached your limit. Upgrade.",
-            'upgrade_required': True
-        })
-    
-    job_keywords = ["job", "jobs", "vacancy", "opening", "developer", "engineer"]
-    if any(word in user_question for word in job_keywords):
-        clean_words = [w for w in user_question.split() if w not in job_keywords]
-
-        query = Q()
-        for word in clean_words:
-            query |= Q(job_title__icontains=word) | Q(job_description__icontains=word)
-
-        jobs = Job.objects.filter(query).distinct()[:5]
-
-        if jobs.exists():
-            job_list = []
-            for job in jobs:
-                job_list.append({
-                    "id": job.id,
-                    "title": job.job_title,
-                    "company": job.company_name
-                })
-
-            answer = {
-                "type": "job_list",
-                "jobs": job_list
-            }
-            source = "db"
-        else:
-            answer = {
-                "type": "text",
-                "message": "❌ No jobs available for your query right now."
-            }
-            source = "db"
+    try:
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        if not profile.can_use_chatbot():
+            return JsonResponse({
+                'reply': "⚠️ You have reached your limit. Upgrade.",
+                'upgrade_required': True
+            })
         
-        CandidateChat.objects.create(
-            candidate=request.user,
-            question=user_question,
-            answer=json.dumps(answer)
-        )
-        profile.increment_chatbot_queries()  # UPDATED: Increment quota
-        return JsonResponse({
-            'reply': answer,
-            'source': source
-        })
-    else:
-        # UPDATED: Add escalation for Pro Plus
-        if profile.is_proplus and "complex" in user_question.lower():
-            escalation = ChatEscalation.objects.create(
-                user=request.user,
-                query=user_question,
-                sla_due=timezone.now() + timedelta(hours=2)
+        job_keywords = ["job", "jobs", "vacancy", "opening", "developer", "engineer"]
+        if any(word in user_question for word in job_keywords):
+            clean_words = [w for w in user_question.split() if w not in job_keywords]
+
+            query = Q()
+            for word in clean_words:
+                query |= Q(job_title__icontains=word) | Q(job_description__icontains=word)
+
+            jobs = Job.objects.filter(query).distinct()[:5]
+
+            if jobs.exists():
+                job_list = []
+                for job in jobs:
+                    job_list.append({
+                        "id": job.id,
+                        "title": job.job_title,
+                        "company": job.company_name
+                    })
+
+                answer = {
+                    "type": "job_list",
+                    "jobs": job_list
+                }
+                source = "db"
+            else:
+                answer = {
+                    "type": "text",
+                    "message": "❌ No jobs available for your query right now."
+                }
+                source = "db"
+            
+            CandidateChat.objects.create(
+                candidate=request.user,
+                question=user_question,
+                answer=json.dumps(answer)
             )
-            return JsonResponse({'reply': "Escalated to consultant. Response in 2 hours."})
-        
-        try:
-            faq = ChatQuestionAnswer.objects.get(question__iexact=user_question)
-            answer = faq.answer
-            source = "db"
-        except ChatQuestionAnswer.DoesNotExist:
-            answer = ask_gemini(user_question)
-            source = "gemini"
-
-        CandidateChat.objects.create(
-            candidate=request.user,
-            question=user_question,
-            answer=json.dumps(answer) 
-        )
-        profile.increment_chatbot_queries()  # UPDATED: Increment quota
-        return JsonResponse({
-            'reply': answer,
-            'source': source
-        })
+            profile.increment_chatbot_queries()
+            return JsonResponse({
+                'reply': answer,
+                'source': source
+            })
+        else:
+            # UPDATED: Add escalation for Pro Plus
+            if profile.is_proplus and "complex" in user_question.lower():
+                escalation = ChatEscalation.objects.create(
+                    user=request.user,
+                    query=user_question,
+                    sla_due=timezone.now() + timedelta(hours=2)
+                )
+                return JsonResponse({'reply': "Escalated to consultant. Response in 2 hours."})
+            
+            try:
+                faq = ChatQuestionAnswer.objects.get(question__iexact=user_question)
+                answer = faq.answer
+                source = "db"
+            except ChatQuestionAnswer.DoesNotExist:
+                try:
+                    answer = ask_gemini(user_question)
+                    source = "gemini"
+                except Exception as e:
+                    logger.error(f"Gemini API failed for user {request.user.username}: {str(e)}")
+                    answer = "Sorry, the AI service is temporarily unavailable. Please try again later."
+                    source = "error"
+            
+            CandidateChat.objects.create(
+                candidate=request.user,
+                question=user_question,
+                answer=json.dumps(answer) if isinstance(answer, dict) else answer
+            )
+            profile.increment_chatbot_queries()
+            return JsonResponse({
+                'reply': answer,
+                'source': source
+            })
+    except Exception as e:
+        logger.error(f"Chatbot API error for user {request.user.username}: {str(e)}")
+        return JsonResponse({'reply': 'An error occurred. Please try again later.'}, status=500)
 
 @login_required
 def candidate_chat(request):

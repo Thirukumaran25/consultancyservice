@@ -219,6 +219,11 @@ class Profile(models.Model):
     def can_enroll_course(self):
         return self.check_quota("courses", self.courses_enrolled_this_month)
 
+    def increment_chatbot_queries(self):
+        """Increment the chatbot queries counter."""
+        self.chatbot_queries_this_month += 1
+        self.save()
+        
     def increment_usage(self, field_name):
         """
         Generic increment method.
