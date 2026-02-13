@@ -18,7 +18,8 @@ from .views import (home,signup,job_list,search,job_detail,save_job,apply_job,
                     enroll_course,training_progress,training_dashboard,
                     admin_course_details,admin_user_progress,sync_progress,
                     admin_courses,admin_add_course,admin_consultant_tracking,
-                    ratelimit_error,)
+                    ratelimit_error,trainee_login,admin_create_trainee,admin_trainees,
+                    admin_edit_trainee,admin_delete_trainee,)
 
 urlpatterns = [
     path('', home, name='home'),
@@ -105,6 +106,12 @@ urlpatterns = [
     path('dashboard/training/sync/', sync_progress, name='sync_progress'),
 
     path('dashboard/consultant-tracking/',admin_consultant_tracking, name='admin_consultant_tracking'),
+    path('trainee-login/', trainee_login, name='trainee_login'),
+    path('dashboard/create-trainee/', admin_create_trainee, name='admin_create_trainee'),
+    path('dashboard/trainees/', admin_trainees, name='admin_trainees'),
+    path('dashboard/edit-trainee/<int:user_id>/', admin_edit_trainee, name='admin_edit_trainee'),
+    path('dashboard/delete-trainee/<int:user_id>/', admin_delete_trainee, name='admin_delete_trainee'),
+    
 ]
 
 

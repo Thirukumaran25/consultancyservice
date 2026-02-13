@@ -1,0 +1,334 @@
+{% extends 'base.html' %}
+{% block content %}
+
+ <!-- Back Button -->
+        <div class="mb-4">
+            <a href="{% url 'admin_dashboard' %}" 
+               class="inline-flex items-center gap-2 bg-white text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-100 transition-all duration-200 shadow-sm hover:shadow-md">
+                <i class='bx bx-left-arrow-alt'></i> Back to Dashboard
+            </a>
+        </div>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-10 px-6">
+    
+    <!-- Header -->
+    <div class="max-w-7xl mx-auto flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Manage Trainees</h1>
+            <p class="text-gray-500 mt-1">Create, edit and manage trainee accounts</p>
+        </div>
+        <button id="createTraineeBtn"
+            class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl shadow-md hover:shadow-lg hover:scale-105 transition duration-200">
+            + New Trainee
+        </button>
+    </div>
+
+    <!-- Table Card -->
+    <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">Name</th>
+                        <th class="px-6 py-4">Username</th>
+                        <th class="px-6 py-4">Email</th>
+                        <th class="px-6 py-4">Course</th>
+                        <th class="px-6 py-4">Plan</th>
+                        <th class="px-6 py-4 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for trainee in trainees %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 font-medium text-gray-800">
+                            {{ trainee.user.first_name }} {{ trainee.user.last_name }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600">
+                            {{ trainee.user.username }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600">
+                            {{ trainee.user.email }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600">
+                            {{ trainee.course }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                {% if trainee.trainee_plan == 'pro' %}
+                                    bg-blue-100 text-blue-700
+                                {% else %}
+                                    bg-purple-100 text-purple-700
+                                {% endif %}
+                            ">
+                                {{ trainee.trainee_plan|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center space-x-3">
+                            <button type="button" class="editTraineeBtn text-blue-600 hover:text-blue-800 font-medium"
+                                    data-user-id="{{ trainee.user.id }}"
+                                    data-first-name="{{ trainee.user.first_name }}"
+                                    data-last-name="{{ trainee.user.last_name }}"
+                                    data-username="{{ trainee.user.username }}"
+                                    data-email="{{ trainee.user.email }}"
+                                    data-course="{{ trainee.course }}"
+                                    data-plan="{{ trainee.trainee_plan }}">
+                                Edit
+                            </button>
+
+                            <form method="post"
+                                  action="{% url 'admin_delete_trainee' trainee.user.id %}"
+                                  class="inline">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        onclick="return confirm('Delete this trainee?')"
+                                        class="text-red-500 hover:text-red-700 font-medium">
+                                    Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- Create Modal -->
+<div id="createTraineeModal"
+     class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 transition">
+
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-8 relative transform scale-95 transition-all duration-200"
+         id="createModalContent">
+
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">
+            Create New Trainee
+        </h2>
+
+        <form id="createTraineeForm" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" name="first_name" placeholder="First Name"
+                       required class="input-modern">
+                <input type="text" name="last_name" placeholder="Last Name"
+                       required class="input-modern">
+            </div>
+
+            <input type="text" name="username" placeholder="Username"
+                   required class="input-modern">
+
+            <input type="email" name="email" placeholder="Email"
+                   required class="input-modern">
+
+            <input type="text" name="course" placeholder="Course"
+                   required class="input-modern">
+
+            <input type="password" name="password" placeholder="Password"
+                   required class="input-modern">
+
+            <select name="trainee_plan" required class="input-modern">
+                <option value="pro">Pro</option>
+                <option value="proplus">Pro Plus</option>
+            </select>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="closeCreateModal"
+                        class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md hover:shadow-lg transition">
+                    Create
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Edit Modal -->
+<div id="editTraineeModal"
+     class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden items-center justify-center z-50 transition">
+
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-8 relative transform scale-95 transition-all duration-200"
+         id="editModalContent">
+
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">
+            Edit Trainee
+        </h2>
+
+        <form id="editTraineeForm" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" id="editUserId">
+
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" name="first_name" id="editFirstName" placeholder="First Name"
+                       required class="input-modern">
+                <input type="text" name="last_name" id="editLastName" placeholder="Last Name"
+                       required class="input-modern">
+            </div>
+
+            <input type="text" name="username" id="editUsername" placeholder="Username"
+                   required class="input-modern">
+
+            <input type="email" name="email" id="editEmail" placeholder="Email"
+                   required class="input-modern">
+
+            <input type="text" name="course" id="editCourse" placeholder="Course"
+                   required class="input-modern">
+
+            <input type="password" name="password" id="editPassword" placeholder="New Password (leave blank to keep)"
+                   class="input-modern">
+
+            <select name="trainee_plan" id="editPlan" required class="input-modern">
+                <option value="pro">Pro</option>
+                <option value="proplus">Pro Plus</option>
+            </select>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="closeEditModal"
+                        class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md hover:shadow-lg transition">
+                    Update
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Extra Styles -->
+<style>
+.input-modern {
+    @apply w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition;
+}
+</style>
+
+
+<script>
+// Create Modal Logic
+const createModal = document.getElementById('createTraineeModal');
+const createModalContent = document.getElementById('createModalContent');
+
+document.getElementById('createTraineeBtn').addEventListener('click', () => {
+    createModal.classList.remove('hidden');
+    createModal.classList.add('flex');
+    setTimeout(() => createModalContent.classList.remove('scale-95'), 10);
+});
+
+document.getElementById('closeCreateModal').addEventListener('click', closeCreateModal);
+createModal.addEventListener('click', (e) => {
+    if (e.target === createModal) closeCreateModal();
+});
+
+function closeCreateModal() {
+    createModalContent.classList.add('scale-95');
+    setTimeout(() => {
+        createModal.classList.add('hidden');
+        createModal.classList.remove('flex');
+    }, 150);
+}
+
+document.getElementById('createTraineeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+
+    fetch('/dashboard/create-trainee/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please check the console.');
+    });
+});
+
+// Edit Modal Logic
+const editModal = document.getElementById('editTraineeModal');
+const editModalContent = document.getElementById('editModalContent');
+
+document.querySelectorAll('.editTraineeBtn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const userId = this.getAttribute('data-user-id');
+        const firstName = this.getAttribute('data-first-name');
+        const lastName = this.getAttribute('data-last-name');
+        const username = this.getAttribute('data-username');
+        const email = this.getAttribute('data-email');
+        const course = this.getAttribute('data-course');
+        const plan = this.getAttribute('data-plan');
+
+        // Pre-fill the modal
+        document.getElementById('editUserId').value = userId;
+        document.getElementById('editFirstName').value = firstName;
+        document.getElementById('editLastName').value = lastName;
+        document.getElementById('editUsername').value = username;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editCourse').value = course;
+        document.getElementById('editPlan').value = plan;
+        document.getElementById('editPassword').value = '';  // Clear password field
+
+        // Open modal
+        editModal.classList.remove('hidden');
+        editModal.classList.add('flex');
+        setTimeout(() => editModalContent.classList.remove('scale-95'), 10);
+    });
+});
+
+document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+editModal.addEventListener('click', (e) => {
+    if (e.target === editModal) closeEditModal();
+});
+
+function closeEditModal() {
+    editModalContent.classList.add('scale-95');
+    setTimeout(() => {
+        editModal.classList.add('hidden');
+        editModal.classList.remove('flex');
+    }, 150);
+}
+
+document.getElementById('editTraineeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const userId = document.getElementById('editUserId').value;
+
+    fetch(`/dashboard/edit-trainee/${userId}/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please check the console.');
+    });
+});
+</script>
+
+{% endblock %}

@@ -12,17 +12,17 @@
       My Profile
     </h1>
 
-    {% if profile.is_proplus %}
+    {% if profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'proplus' %}
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
                   bg-purple-100 text-purple-700 px-4 py-1.5
                   rounded-full font-semibold text-sm">
-        <i class="bx bx-star"></i> Pro Plus User
+        <i class="bx bx-star"></i> {% if profile.is_trainee %}Trainee (Pro Plus){% else %}Pro Plus User{% endif %}
       </span>
-    {% elif profile.is_pro %}
+    {% elif profile.is_pro or profile.is_trainee and profile.trainee_plan == 'pro' %}
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
                   bg-green-100 text-green-700 px-4 py-1.5
                   rounded-full font-semibold text-sm">
-        <i class="bx bx-box"></i> Pro User
+        <i class="bx bx-box"></i> {% if profile.is_trainee %}Trainee (Pro){% else %}Pro User{% endif %}
       </span>
     {% else %}
       <span class="mt-2 sm:mt-0 inline-flex items-center gap-1
@@ -34,8 +34,8 @@
 
   </div>
 
-  <!-- Upgrade Banner for Free Users -->
-  {% if not profile.is_proplus %}
+  <!-- Upgrade Banner for Free Users (Hidden for Trainees) -->
+  {% if not profile.is_proplus and not profile.is_trainee %}
   <div class="bg-indigo-600 text-white p-5 rounded-xl flex flex-col sm:flex-row
               sm:items-center sm:justify-between gap-4 shadow-lg">
     <p class="font-medium">
@@ -63,6 +63,9 @@
         <div>
           <h2 class="text-lg font-semibold">{{ user.username }}</h2>
           <p class="text-sm text-gray-600">{{ user.email }}</p>
+          {% if profile.is_trainee %}
+            <p class="text-sm text-gray-500">Course: {{ profile.course|default:"N/A" }}</p>
+          {% endif %}
         </div>
       </div>
 
@@ -137,235 +140,210 @@
         {% endif %}
       </div>
 
-      
-
       <!-- Quick Actions -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-  <!-- Saved Jobs Card -->
-  <a href="{% url 'saved_jobs' %}" 
-     class="group bg-white rounded-2xl shadow-md p-5 flex flex-col items-center justify-center
-            hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
-    
-    <div class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 mb-3">
-      <i class="bx bx-bookmark text-2xl"></i>
-    </div>
-    
-    <h3 class="text-lg font-semibold text-gray-800 group-hover:text-indigo-600 transition">
-      Saved Jobs
-    </h3>
-    <p class="text-sm text-gray-500 mt-1 text-center">All jobs you saved for later</p>
-  </a>
+        <!-- Saved Jobs Card -->
+        <a href="{% url 'saved_jobs' %}" 
+           class="group bg-white rounded-2xl shadow-md p-5 flex flex-col items-center justify-center
+                  hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+          
+          <div class="w-14 h-14 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-600 mb-3">
+            <i class="bx bx-bookmark text-2xl"></i>
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-800 group-hover:text-indigo-600 transition">
+            Saved Jobs
+          </h3>
+          <p class="text-sm text-gray-500 mt-1 text-center">All jobs you saved for later</p>
+        </a>
 
-  <!-- Applied Jobs Card -->
-  <a href="{% url 'applied_jobs' %}" 
-     class="group bg-white rounded-2xl shadow-md p-5 flex flex-col items-center justify-center
-            hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
-    
-    <div class="w-14 h-14 flex items-center justify-center rounded-full bg-green-100 text-green-600 mb-3">
-      <i class="bx bx-check-circle text-2xl"></i>
-    </div>
-    
-    <h3 class="text-lg font-semibold text-gray-800 group-hover:text-green-600 transition">
-      Applied Jobs
-    </h3>
-    <p class="text-sm text-gray-500 mt-1 text-center">Jobs you have already applied for</p>
-  </a>
+        <!-- Applied Jobs Card -->
+        <a href="{% url 'applied_jobs' %}" 
+           class="group bg-white rounded-2xl shadow-md p-5 flex flex-col items-center justify-center
+                  hover:shadow-xl hover:-translate-y-1 transform transition-all duration-300">
+          
+          <div class="w-14 h-14 flex items-center justify-center rounded-full bg-green-100 text-green-600 mb-3">
+            <i class="bx bx-check-circle text-2xl"></i>
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-800 group-hover:text-green-600 transition">
+            Applied Jobs
+          </h3>
+          <p class="text-sm text-gray-500 mt-1 text-center">Jobs you have already applied for</p>
+        </a>
 
-</div>
+      </div>
 
-
-      <!-- Pro Dashboard -->
-      {% if profile.is_pro %}
+      <!-- Pro Dashboard (Shown for Pro/Pro Plus Users or Trainees with Pro/Pro Plus Plans) -->
+      {% if profile.is_pro or profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'pro' or profile.is_trainee and profile.trainee_plan == 'proplus' %}
       <div class="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-2xl shadow-xl p-6 sm:p-8">
 
-  <div class="flex items-center justify-between mb-6">
-    <h3 class="text-xl sm:text-2xl font-semibold text-white flex items-center gap-2">
-      <i class="bx bx-crown text-2xl"></i> Pro Tools
-    </h3>
-    <span class="text-xs sm:text-sm bg-white/20 text-white px-3 py-1 rounded-full">
-      Premium Features
-    </span>
-  </div>
-
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">  <!-- 4 columns -->
-
-    <!-- Card 1 -->
-    <a href="{% url 'subscription' %}"
-       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
-              transition transform hover:-translate-y-1">
-
-      <div class="flex items-center justify-center w-12 h-12 rounded-full
-                  bg-indigo-100 text-indigo-600 mb-3 mx-auto">
-        <i class="bx bx-credit-card text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">Subscription</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">Billing & Renewals</p>
-    </a>
-
-    <!-- Card 2 -->
-    <a href="{% url 'resume_ai' %}"
-       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
-              transition transform hover:-translate-y-1">
-
-      <div class="flex items-center justify-center w-12 h-12 rounded-full
-                  bg-green-100 text-green-600 mb-3 mx-auto">
-        <i class="bx bx-file text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">AI Resume Optimizer</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">Improve your resume</p>
-    </a>
-
-    <!-- Card 3 -->
-    <a href="{% url 'job_matching' %}"
-       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
-              transition transform hover:-translate-y-1">
-
-      <div class="flex items-center justify-center w-12 h-12 rounded-full
-                  bg-yellow-100 text-yellow-600 mb-3 mx-auto">
-        <i class="bx bx-briefcase text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">Job Matching</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">Match % scores</p>
-    </a>
-
-    <!-- Card 4 -->
-    <a href="{% url 'courses' %}"
-       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
-              transition transform hover:-translate-y-1">
-
-      <div class="flex items-center justify-center w-12 h-12 rounded-full
-                  bg-pink-100 text-pink-600 mb-3 mx-auto">
-        <i class="bx bx-book text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">Courses</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">Upskill yourself</p>
-    </a>
-
-    <!-- Card 5: Interview Feedback (Now a Link to the Page) -->
-    <a href="{% url 'user_feedbacks' %}"
-       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl
-              transition transform hover:-translate-y-1">
-              <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3 mx-auto">
-        <i class="bx bx-message-dots text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">Interview Feedback</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">View all feedback</p>
-    </a>
-
-    <!-- Card 6: Schedule Mock Interview (Clickable to Open Modal, Pro Plus Only) -->
-    {% if profile.is_proplus %}
-    <button onclick="openMockModal()"
-            class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1 w-full">
-
-      <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-600 mb-3 mx-auto">
-        <i class="bx bx-video text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">Mock Interview</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">{{ profile.mock_interviews_this_month }}/{{ profile.get_limits.mock_interviews }} slots left</p>
-    </button>
-    {% endif %}
-
-    <!-- NEW: Training Progress Box (Pro Plus Only) -->
-    {% if profile.is_proplus %}
-    <a href="{% url 'training_progress' %}" 
-       class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
-
-      <div class="flex items-center justify-center w-12 h-12 rounded-full bg-orange-100 text-orange-600 mb-3 mx-auto">
-        <i class="bx bx-trending-up text-2xl"></i>
-      </div>
-
-      <h4 class="text-center font-semibold text-gray-800">Training Progress</h4>
-      <p class="text-center text-gray-500 text-sm mt-1">Track enrolled courses</p>
-    </a>
-    {% endif %}
-
-  </div>
-
-  <!-- NEW: Quota Usage Section -->
-  <div class="mt-6 bg-white rounded-2xl shadow-lg p-6">
-    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-      <i class="bx bx-bar-chart text-indigo-600"></i> Usage Quotas
-    </h3>
-    <div class="space-y-4">
-      <!-- Applications (All Tiers) -->
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span>Job Applications</span>
-          <span>{{ profile.applications_this_month }}/{{ profile.application_limit|default:"Unlimited" }}</span>
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl sm:text-2xl font-semibold text-white flex items-center gap-2">
+            <i class="bx bx-crown text-2xl"></i> {% if profile.is_trainee %}Trainee{% else %}Pro{% endif %} Tools
+          </h3>
+          <span class="text-xs sm:text-sm bg-white/20 text-white px-3 py-1 rounded-full">
+            Premium Features
+          </span>
         </div>
-        <div class="w-full bg-gray-300 rounded-full h-3">
-          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.applications_percent }}%;"></div>
-        </div>
-      </div>
 
-      <!-- Chatbot Queries (Pro/Pro Plus) -->
-      {% if profile.is_pro or profile.is_proplus %}
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span>Chatbot Queries</span>
-          <span>{{ profile.chatbot_queries_this_month }}/{{ profile.get_limits.chatbot|default:"Unlimited" }}</span>
-        </div>
-        <div class="w-full bg-gray-300 rounded-full h-3">
-          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.chatbot_percent }}%;"></div>
-        </div>
-      </div>
-      {% endif %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
-      <!-- Resume Optimizations (Pro/Pro Plus) -->
-      {% if profile.is_pro or profile.is_proplus %}
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span>Resume Optimizations</span>
-          <span>{{ profile.resume_optimizations_this_month }}/{{ profile.get_limits.resume|default:"Unlimited" }}</span>
-        </div>
-        <div class="w-full bg-gray-300 rounded-full h-3">
-          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.resume_percent }}%;"></div>
-        </div>
-      </div>
-      {% endif %}
+          <!-- Card 1: Subscription -->
+          <a href="{% url 'subscription' %}"
+             class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 mb-3 mx-auto">
+              <i class="bx bx-credit-card text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">Subscription</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">Billing & Renewals</p>
+          </a>
 
-      <!-- Consultant Sessions (Pro/Pro Plus) -->
-      {% if profile.is_pro or profile.is_proplus %}
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span>Consultant Sessions</span>
-          <span>{{ profile.consultant_sessions_this_month }}/{{ profile.get_limits.consultant_sessions|default:"Unlimited" }}</span>
-        </div>
-        <div class="w-full bg-gray-300 rounded-full h-3">
-          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.consultant_percent }}%;"></div>
-        </div>
-      </div>
-      {% endif %}
+          <!-- Card 2: AI Resume Optimizer -->
+          <a href="{% url 'resume_ai' %}"
+             class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-3 mx-auto">
+              <i class="bx bx-file text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">AI Resume Optimizer</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">Improve your resume</p>
+          </a>
 
-      <!-- Mock Interviews (Pro Plus Only) -->
-      {% if profile.is_proplus %}
-      <div>
-        <div class="flex justify-between text-sm mb-1">
-          <span>Mock Interviews</span>
-          <span>{{ profile.mock_interviews_this_month }}/{{ profile.get_limits.mock_interviews }}</span>
-        </div>
-        <div class="w-full bg-gray-300 rounded-full h-3">
-          <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ quota_data.mock_percent }}%;"></div>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-  </div>
+          <!-- Card 3: Job Matching -->
+          <a href="{% url 'job_matching' %}"
+             class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 mb-3 mx-auto">
+              <i class="bx bx-briefcase text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">Job Matching</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">Match % scores</p>
+          </a>
 
+          <!-- Card 4: Courses -->
+          <a href="{% url 'courses' %}"
+             class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-pink-100 text-pink-600 mb-3 mx-auto">
+              <i class="bx bx-book text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">Courses</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">Upskill yourself</p>
+          </a>
+
+          <!-- Card 5: Interview Feedback -->
+          <a href="{% url 'user_feedbacks' %}"
+             class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3 mx-auto">
+              <i class="bx bx-message-dots text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">Interview Feedback</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">View all feedback</p>
+          </a>
+
+          <!-- Card 6: Schedule Mock Interview (Pro Plus Only or Trainee Pro Plus) -->
+          {% if profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'proplus' %}
+          <button onclick="openMockModal()"
+                  class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1 w-full">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-600 mb-3 mx-auto">
+              <i class="bx bx-video text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">Mock Interview</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">{{ profile.mock_interviews_this_month }}/{{ profile.get_limits.mock_interviews }} slots left</p>
+          </button>
+          {% endif %}
+
+          <!-- Card 7: Training Progress (Pro Plus Only or Trainee Pro Plus) -->
+          {% if profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'proplus' %}
+          <a href="{% url 'training_progress' %}" 
+             class="group bg-white rounded-xl p-5 shadow-md hover:shadow-xl transition transform hover:-translate-y-1">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-orange-100 text-orange-600 mb-3 mx-auto">
+              <i class="bx bx-trending-up text-2xl"></i>
+            </div>
+            <h4 class="text-center font-semibold text-gray-800">Training Progress</h4>
+            <p class="text-center text-gray-500 text-sm mt-1">Track enrolled courses</p>
+          </a>
+          {% endif %}
+
+        </div>
+
+        <!-- Quota Usage Section -->
+        <div class="mt-6 bg-white rounded-2xl shadow-lg p-6">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <i class="bx bx-bar-chart text-indigo-600"></i> Usage Quotas
+          </h3>
+          <div class="space-y-4">
+            <!-- Applications (All Tiers) -->
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Job Applications</span>
+                <span>{{ profile.applications_this_month }}/{{ profile.get_limits.applications|default:"Unlimited" }}</span>
+              </div>
+              <div class="w-full bg-gray-300 rounded-full h-3">
+                <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ applications_percent }}%;"></div>
+              </div>
+            </div>
+
+            <!-- Chatbot Queries (Pro/Pro Plus or Trainee Pro/Pro Plus) -->
+            {% if profile.is_pro or profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'pro' or profile.is_trainee and profile.trainee_plan == 'proplus' %}
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Chatbot Queries</span>
+                <span>{{ profile.chatbot_queries_this_month }}/{{ profile.get_limits.chatbot|default:"Unlimited" }}</span>
+              </div>
+              <div class="w-full bg-gray-300 rounded-full h-3">
+                <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ chatbot_percent }}%;"></div>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Resume Optimizations (Pro/Pro Plus or Trainee Pro/Pro Plus) -->
+            {% if profile.is_pro or profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'pro' or profile.is_trainee and profile.trainee_plan == 'proplus' %}
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Resume Optimizations</span>
+                <span>{{ profile.resume_optimizations_this_month }}/{{ profile.get_limits.resume|default:"Unlimited" }}</span>
+              </div>
+              <div class="w-full bg-gray-300 rounded-full h-3">
+                <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ resume_percent }}%;"></div>
+              </div>
+            </div>
+            {% endif %}
+                        <!-- Consultant Sessions (Pro/Pro Plus or Trainee Pro/Pro Plus) -->
+            {% if profile.is_pro or profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'pro' or profile.is_trainee and profile.trainee_plan == 'proplus' %}
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Consultant Sessions</span>
+                <span>{{ profile.consultant_sessions_this_month }}/{{ profile.get_limits.consultant_sessions|default:"Unlimited" }}</span>
+              </div>
+              <div class="w-full bg-gray-300 rounded-full h-3">
+                <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ consultant_percent }}%;"></div>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Mock Interviews (Pro Plus Only or Trainee Pro Plus) -->
+            {% if profile.is_proplus or profile.is_trainee and profile.trainee_plan == 'proplus' %}
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span>Mock Interviews</span>
+                <span>{{ profile.mock_interviews_this_month }}/{{ profile.get_limits.mock_interviews }}</span>
+              </div>
+              <div class="w-full bg-gray-300 rounded-full h-3">
+                <div class="h-3 rounded-full bg-gradient-to-r from-green-400 to-red-500" style="width: {{ mock_percent }}%;"></div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
       {% endif %}
 
     </div>
   </div>
 </div>
 
-<!-- Existing Modal for Edit Profile -->
+<!-- Edit Profile Modal -->
 <div id="profileModal"
      class="fixed inset-0 z-50 hidden bg-black/50 flex justify-center items-center p-4">
 
@@ -375,7 +353,8 @@
       <h2 class="text-lg sm:text-xl font-semibold">Edit Profile</h2>
       <button onclick="closeModal()" class="text-red-500 text-2xl leading-none">&times;</button>
     </div>
-          <form method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mt-3">
+
+    <form method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto space-y-2 sm:space-y-3 mt-3">
       {% csrf_token %}
       {{ form.as_p }}
 
@@ -393,48 +372,45 @@
   </div>
 </div>
 
-
-
-<!-- New Modal for Mock Interview Scheduling -->
+<!-- Mock Interview Modal -->
 <div id="mockModal"
-     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50
-            flex items-center justify-center p-4">
-    <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl">
-        <div class="bg-gradient-to-r from-red-600 to-pink-600 px-6 py-4 flex items-center justify-between">
-            <h3 class="text-white font-bold text-lg">Schedule Mock Interview</h3>
-            <button onclick="closeMockModal()" class="text-white text-2xl">&times;</button>
-        </div>
-        <form id="mockInterviewForm" class="p-6 space-y-4">
-            {% csrf_token %}
-                        <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">Interview Type</label>
-                <select name="interview_type" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
-                    <option value="BEHAVIORAL">Behavioral</option>
-                    <option value="TECHNICAL">Technical</option>
-                    <option value="CASE_STUDY">Case Study</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">Target Role</label>
-                <input type="text" name="target_role" placeholder="e.g., Software Engineer" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
-            </div>
-            <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">Date & Time</label>
-                <input type="datetime-local" name="scheduled_at" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
-            </div>
-            <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
-                <textarea name="notes" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500"></textarea>
-            </div>
-            <div id="mockErrors" class="text-red-600"></div>
-            <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold shadow hover:shadow-lg transition">
-                Schedule Interview
-            </button>
-        </form>
+     class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-2xl">
+    <div class="bg-gradient-to-r from-red-600 to-pink-600 px-6 py-4 flex items-center justify-between">
+      <h3 class="text-white font-bold text-lg">Schedule Mock Interview</h3>
+      <button onclick="closeMockModal()" class="text-white text-2xl">&times;</button>
     </div>
+    <form id="mockInterviewForm" class="p-6 space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Interview Type</label>
+        <select name="interview_type" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
+          <option value="BEHAVIORAL">Behavioral</option>
+          <option value="TECHNICAL">Technical</option>
+          <option value="CASE_STUDY">Case Study</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Target Role</label>
+        <input type="text" name="target_role" placeholder="e.g., Software Engineer" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Date & Time</label>
+        <input type="datetime-local" name="scheduled_at" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
+        <textarea name="notes" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500"></textarea>
+      </div>
+      <div id="mockErrors" class="text-red-600"></div>
+      <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold shadow hover:shadow-lg transition">
+        Schedule Interview
+      </button>
+    </form>
+  </div>
 </div>
 
-<!-- Modal Script -->
+<!-- Modal Scripts -->
 <script>
 function openModal() {
   document.getElementById("profileModal").classList.remove("hidden");
@@ -451,7 +427,6 @@ function openMockModal() {
 function closeMockModal() {
   document.getElementById("mockModal").classList.add("hidden");
 }
-
 
 const mockForm = document.getElementById('mockInterviewForm');
 if (mockForm) {
@@ -472,24 +447,21 @@ if (mockForm) {
     .then(data => {
       if (data.success) {
         alert('Mock interview scheduled successfully!');
-        location.reload(); // update slots
-      } 
-      else if (data.error && data.error.toLowerCase().includes('slot')) {
-        // ✅ Slot full case
+        location.reload(); // Update slots
+      } else if (data.error && data.error.toLowerCase().includes('slot')) {
         alert('Your mock interview slots are already full.');
-      } 
-      else {
+      } else {
         alert(data.error || 'Scheduling failed. Please try again.');
       }
     })
     .catch(error => {
-      console.error('Fetch error:', error);
+      console.error('Error:', error);
       alert('Something went wrong. Please try again.');
     });
   });
 }
 
-// Copy to Clipboard Function for Referral
+// Copy to Clipboard Function for Referral (if needed)
 function copyToClipboard() {
   const linkInput = document.getElementById('referralLink');
   linkInput.select();

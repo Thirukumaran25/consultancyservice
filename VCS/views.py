@@ -43,6 +43,11 @@ from celery import shared_task
 from decimal import Decimal
 from .decorators import rate_limit
 import logging
+import base64  
+from io import BytesIO 
+from reportlab.lib.pagesizes import letter  # Added for PDF page size
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # Added for PDF styling
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer  # Added for PDF content
 logger = logging.getLogger(__name__)
 
 
@@ -742,110 +747,145 @@ def job_matching(request):
         "matched_jobs": matched_jobs
     })
 
+
 @login_required
 def ai_resume_optimizer(request):
-    profile = request.user.profile
+    user = request.user
+    profile = get_object_or_404(Profile, user=user)
     
+    # Check if user can optimize resume (for Pro/Pro Plus or trainees)
+    if not (profile.is_pro or profile.is_proplus or (profile.is_trainee and (profile.trainee_plan == 'pro' or profile.trainee_plan == 'proplus'))):
+        messages.error(request, "You need a Pro or Pro Plus plan to use this feature.")
+        return redirect('upgrade_plan')
+    
+    if not profile.can_optimize_resume():
+        messages.error(request, f"You've reached your monthly limit of {profile.get_limits()['resume']} resume optimizations.")
+        return redirect('profile')
+    
+    # Initialize context variables
     score = None
     matched_keywords = []
     missing_keywords = []
     suggestions = []
-    job_title = None
+    pdf_base64 = None
+    is_pdf = False  # Flag to indicate if it's PDF or text
+    
+    resume_optimization_limit = profile.get_limits()['resume']
+    resume_percent = (profile.resume_optimizations_this_month / resume_optimization_limit) * 100 if resume_optimization_limit else 0
     
     if request.method == 'POST':
-        job_title = request.POST.get('job_title', '')
-        resume_text = request.POST.get('resume_text', '')
+        job_title = request.POST.get('job_title')
+        resume_text = request.POST.get('resume_text')
         
-        if not resume_text or not job_title:
-            messages.error(request, "Please provide both job title and resume text.")
-            return redirect('resume_ai')
-        
-        if not profile.can_optimize_resume():
-            messages.error(request, "You've reached your monthly limit for resume optimizations.")
-            return redirect('resume_ai')
-        
-        # AI Optimization Logic
-        try:
-            prompt = f"""
-            Analyze the following resume text for suitability to the job title "{job_title}".
-            Provide a match score out of 100, a list of matched keywords (skills/experiences present in the resume that fit the job), 
-            a list of missing keywords (important skills/experiences absent), and 3-5 personalized suggestions to improve the resume.
-            
-            Resume Text:
-            {resume_text}
-            
-            Format your response as:
-            Score: [number]
-            Matched: [comma-separated list]
-            Missing: [comma-separated list]
-            Suggestions: [bullet-point list]
-            """
-            
-            ai_response = ask_gemini(prompt)
-            
-            # Parse AI Response (simple text parsing; adjust if Gemini returns JSON)
-            lines = ai_response.strip().split('\n')
-            for line in lines:
-                if line.startswith('Score:'):
+        if job_title and resume_text:
+            try:
+                # Craft concise prompt for analysis (fits 10-line limit, forces JSON)
+                prompt = f"""
+                Analyze the resume for the job: {job_title}.
+                Resume text (truncated): {resume_text[:500]}
+                
+                Return ONLY the JSON object, no other text:
+                {{"score": 85, "matched_keywords": ["Python", "Django"], "missing_keywords": ["React", "AWS"], "suggestions": ["Add cloud experience.", "Highlight projects."]}}
+                """
+                
+                # Call your ask_gemini function
+                response_text = ask_gemini(prompt)
+                
+                if response_text == "⚠️ AI service is temporarily unavailable.":
+                    raise Exception("AI service unavailable")
+                
+                # Debug: Print raw response to console
+                print("🔍 GEMINI RAW RESPONSE:", repr(response_text))
+                
+                # Parse JSON response (try direct first)
+                data = None
+                try:
+                    data = json.loads(response_text)
+                    print("✅ JSON PARSED DIRECTLY")
+                except json.JSONDecodeError:
+                    # Try regex to extract JSON
+                    json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                    if json_match:
+                        try:
+                            data = json.loads(json_match.group(0))
+                            print("✅ JSON EXTRACTED VIA REGEX")
+                        except json.JSONDecodeError as e2:
+                            print("❌ REGEX EXTRACTION FAILED:", e2)
+                    else:
+                        print("❌ NO JSON FOUND IN RESPONSE")
+                
+                # Always generate downloadable content (PDF or text)
+                enhanced_resume_text = f"Enhanced Resume for {job_title}\n\n{resume_text}\n\nSuggestions Applied:\n" + "\n".join(suggestions if data else ["Review and refine based on job requirements."])
+                
+                if data:
+                    score = data.get('score', 0)
+                    matched_keywords = data.get('matched_keywords', [])
+                    missing_keywords = data.get('missing_keywords', [])
+                    suggestions = data.get('suggestions', [])
+                    
+                    # Try PDF generation
                     try:
-                        score = int(line.split(':')[1].strip())
-                        score = max(0, min(100, score))  # Clamp to 0-100
-                    except ValueError:
-                        score = 85  # Fallback
-                elif line.startswith('Matched:'):
-                    matched_keywords = [kw.strip() for kw in line.split(':')[1].split(',') if kw.strip()]
-                elif line.startswith('Missing:'):
-                    missing_keywords = [kw.strip() for kw in line.split(':')[1].split(',') if kw.strip()]
-                elif line.startswith('Suggestions:'):
-                    suggestions_text = line.split(':')[1].strip()
-                    suggestions = [s.strip('- ').strip() for s in suggestions_text.split('\n') if s.strip()]
-            
-            # Ensure defaults if parsing fails
-            if score is None:
-                score = 85
-            if not matched_keywords:
-                matched_keywords = ['Python', 'Django', 'SQL']
-            if not missing_keywords:
-                missing_keywords = ['React', 'AWS']
-            if not suggestions:
-                suggestions = [
-                    "Add more experience with cloud technologies like AWS.",
-                    "Highlight leadership skills in your summary.",
-                    "Include quantifiable achievements in your bullet points."
-                ]
-        
-        except Exception as e:
-            # AI failed: Log error and use defaults
-            logger.error(f"AI resume optimization failed for user {request.user.username}: {str(e)}")
-            score = 85
-            matched_keywords = ['Python', 'Django', 'SQL']
-            missing_keywords = ['React', 'AWS']
-            suggestions = [
-                "Add more experience with cloud technologies like AWS.",
-                "Highlight leadership skills in your summary.",
-                "Include quantifiable achievements in your bullet points."
-            ]
-            messages.warning(request, "AI optimization is temporarily unavailable. Using default analysis.")
-        
-        # Increment quota after successful processing
-        profile.resume_optimizations_this_month += 1
-        profile.save()
+                        buffer = BytesIO()
+                        doc = SimpleDocTemplate(buffer, pagesize=letter)
+                        styles = getSampleStyleSheet()
+                        title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=16, spaceAfter=12)
+                        normal_style = styles['Normal']
+                        
+                        story = [
+                            Paragraph(f"Enhanced Resume for {job_title}", title_style),
+                            Spacer(1, 12),
+                            Paragraph("Original Resume:", styles['Heading2']),
+                            Paragraph(resume_text.replace('\n', '<br/>'), normal_style),
+                            Spacer(1, 12),
+                            Paragraph("Suggestions Applied:", styles['Heading2']),
+                            Paragraph("<br/>".join(suggestions), normal_style),
+                        ]
+                        
+                        doc.build(story)
+                        pdf_bytes = buffer.getvalue()
+                        buffer.close()
+                        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+                        is_pdf = True
+                        print("✅ PDF GENERATED")
+                    except Exception as pdf_e:
+                        print("❌ PDF GENERATION FAILED:", pdf_e)
+                        # Fallback to text
+                        pdf_base64 = base64.b64encode(enhanced_resume_text.encode('utf-8')).decode('utf-8')
+                        is_pdf = False
+                else:
+                    # Fallback: Use text download
+                    messages.warning(request, "AI analysis completed, but response format was unexpected. Using basic feedback. Check logs for details.")
+                    score = 50
+                    matched_keywords = ["Analysis completed"]
+                    missing_keywords = ["Check job description"]
+                    suggestions = ["Review and refine based on job requirements."]
+                    pdf_base64 = base64.b64encode(enhanced_resume_text.encode('utf-8')).decode('utf-8')
+                    is_pdf = False
+                
+                # Increment usage
+                profile.resume_optimizations_this_month += 1
+                profile.save()
+                
+                messages.success(request, "Resume analyzed successfully!")
+            except Exception as e:
+                messages.error(request, f"Error analyzing resume: {str(e)}. Please try again.")
+        else:
+            messages.error(request, "Please provide both job title and resume text.")
     
-    # Calculate quota percentage
-    resume_limit = profile.get_limits()["resume"]
-    resume_percent = 0
-    if resume_limit > 0:
-        resume_percent = min((profile.resume_optimizations_this_month / resume_limit) * 100, 100)
-    
-    return render(request, "resume_ai.html", {
-        "profile": profile,
-        "score": score,
-        "matched_keywords": matched_keywords,
-        "missing_keywords": missing_keywords,
-        "suggestions": suggestions,
-        "job_title": job_title,
-        "resume_percent": resume_percent, 
-    })
+    context = {
+        'profile': profile,
+        'score': score,
+        'matched_keywords': matched_keywords,
+        'missing_keywords': missing_keywords,
+        'suggestions': suggestions,
+        'pdf_base64': pdf_base64,
+        'is_pdf': is_pdf,  # To show PDF or text in template
+        'resume_optimization_limit': resume_optimization_limit,
+        'resume_percent': resume_percent,
+        'job_title': request.POST.get('job_title', ''),
+        'resume_text': request.POST.get('resume_text', ''),
+    }
+    return render(request, "resume_ai.html", context)
 
 @login_required
 def courses(request):
@@ -931,6 +971,7 @@ def admin_dashboard(request):
         'courses': courses,
         'sla_compliance': sla_compliance,
         'tier_conversions': tier_conversions,  
+        'total_trainees': Profile.objects.filter(is_trainee=True).count(), 
     }
     return render(request, 'admin/dashboard.html', context)
 
@@ -2162,3 +2203,92 @@ def admin_consultant_tracking(request):
         'search_query': search_query,
         'tier_filter': tier_filter,
     })
+
+
+@staff_member_required
+def admin_create_trainee(request):
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        course = request.POST.get('course')
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        trainee_plan = request.POST.get('trainee_plan')
+        
+        if User.objects.filter(username=username).exists():
+            error_msg = 'Username already exists.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+            return redirect('admin_dashboard')
+        
+        # Create user
+        user = User.objects.create_user(username=username, password=password, email=email, first_name=first_name, last_name=last_name)
+        
+        # Create profile and set plan
+        profile, created = Profile.objects.get_or_create(user=user)
+        profile.is_trainee = True
+        profile.course = course
+        profile.trainee_plan = trainee_plan
+        profile.save()
+        
+
+        success_msg = f"Trainee {username} created successfully."
+        messages.success(request, success_msg)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        return redirect('admin_trainees')
+    
+    # For modal rendering
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'admin/admin_create_trainee_modal.html')
+    return redirect('admin_dashboard')
+
+@staff_member_required
+def admin_trainees(request):
+    trainees = Profile.objects.filter(is_trainee=True).select_related('user')
+    return render(request, 'admin/admin_trainees.html', {'trainees': trainees})
+
+@staff_member_required
+def admin_edit_trainee(request, user_id):
+    profile = get_object_or_404(Profile, user_id=user_id, is_trainee=True)
+    if request.method == 'POST':
+        profile.user.first_name = request.POST.get('first_name')
+        profile.user.last_name = request.POST.get('last_name')
+        profile.course = request.POST.get('course')
+        profile.user.username = request.POST.get('username')
+        profile.user.email = request.POST.get('email')
+        profile.trainee_plan = request.POST.get('trainee_plan')
+        if request.POST.get('password'):
+            profile.user.set_password(request.POST.get('password'))
+        profile.user.save()
+        profile.save()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        messages.success(request, "Trainee updated successfully.")
+        return redirect('admin_trainees')
+    return render(request, 'admin/admin_edit_trainee.html', {'profile': profile})
+
+
+@staff_member_required
+def admin_delete_trainee(request, user_id):
+    if request.method == 'POST':
+        profile = get_object_or_404(Profile, user_id=user_id, is_trainee=True)
+        profile.user.delete()  # Deletes user and profile
+        messages.success(request, "Trainee deleted successfully.")
+    return redirect('admin_trainees')
+
+def trainee_login(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        
+        user = authenticate(request, username=username, password=password)
+        if user and hasattr(user, 'profile') and user.profile.is_trainee:
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.error(request, "Invalid credentials or not a trainee account.")
+    return render(request, "trainee_login.html")

@@ -116,6 +116,10 @@ class Profile(models.Model):
     mock_interviews_this_month = models.PositiveIntegerField(default=0)
     courses_enrolled_this_month = models.PositiveIntegerField(default=0)
 
+    is_trainee = models.BooleanField(default=False) 
+    course = models.CharField(max_length=100, blank=True, null=True) 
+    trainee_plan = models.CharField(max_length=10, choices=[('pro', 'Pro'), ('proplus', 'Pro Plus')], default='pro') 
+
     consultant_hours_used_this_month = models.DecimalField(
         max_digits=5, decimal_places=2, default=0.0
     )
@@ -139,25 +143,25 @@ class Profile(models.Model):
 
     @property
     def tier(self):
-        if self.is_proplus:
+        if self.is_proplus or (self.is_trainee and self.trainee_plan == 'proplus'):
             return "PROPLUS"
-        elif self.is_pro:
+        elif self.is_pro or (self.is_trainee and self.trainee_plan == 'pro'):
             return "PRO"
         return "FREE"
 
     def get_limits(self):
         """
-        Returns all limits based on subscription tier.
+        Returns all limits based on subscription tier or trainee plan.
         None = Unlimited
         """
         limits = {
             "FREE": {
-                "applications":20,
+                "applications": 20,
                 "chatbot": 0,
                 "resume": 0,
                 "consultant_sessions": 0,
                 "mock_interviews": 0,
-                "courses":0,
+                "courses": 0,
             },
             "PRO": {
                 "applications": 100,
@@ -177,6 +181,13 @@ class Profile(models.Model):
             }
         }
 
+        # UPDATED: Check for trainee first
+        if self.is_trainee:
+            if self.trainee_plan == 'proplus':
+                return limits["PROPLUS"]
+            else:
+                return limits["PRO"]
+        
         return limits[self.tier]
 
     def applications_this_month(self):
@@ -205,6 +216,11 @@ class Profile(models.Model):
         return used_value < limit
 
     def can_use_chatbot(self):
+        # UPDATED: For trainees, use trainee_plan logic
+        if self.is_trainee:
+            if self.trainee_plan == 'proplus':
+                return True
+            return self.chatbot_queries_this_month < 250
         return self.check_quota("chatbot", self.chatbot_queries_this_month)
 
     def can_optimize_resume(self):
@@ -223,7 +239,7 @@ class Profile(models.Model):
         """Increment the chatbot queries counter."""
         self.chatbot_queries_this_month += 1
         self.save()
-        
+
     def increment_usage(self, field_name):
         """
         Generic increment method.
@@ -252,6 +268,7 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+
 
 class Enrollment(models.Model):
     STAGE_CHOICES = [
